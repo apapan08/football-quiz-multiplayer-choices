@@ -1,0 +1,160 @@
+// src/data/questions.js
+export const questions = [
+
+  {
+    id: "q4-saka-second-nationality",
+    order: 1,
+    category: "Εθνικότητες",
+    points: 1,
+    lang: "el",
+    prompt: "Ποια είναι η 2η εθνικότητα του Bukayo Saka;",
+    type: "open",
+
+    answerMode: "catalog",
+    catalog: "countries",
+    acceptKeys: ["NG"],
+    accept: ["Nigeria", "Νιγηρία"],
+    answer: "Νιγηρία",
+  },
+
+  // 1) Iconic match — scoreline (video)
+  {
+    id: "q1-iconic-chelsea-barca-score",
+    order: 2,
+    category: "Iconic Matches",
+    points: 1,
+    lang: "el",
+    prompt:
+      "Ποιο ήταν το τελικό σκορ του αγώνα στο οποίο σημειώθηκε το παρακάτω γκολ;",
+    type: "open",
+    media: { kind: "video", src: "/Videos/Video1.mp4" },
+
+    answerMode: "scoreline",
+    teams: { home: "Chelsea", away: "Barcelona" },
+    acceptScores: [{ home: 1, away: 1 }],
+    answer: "Chelsea – Barcelona 1–1",
+  },
+
+  // 2) Career → Emre Can (image)
+  {
+    id: "q2-career-emre-can",
+    order: 3,
+    category: "Βιογραφικό παίκτη",
+    points: 1,
+    lang: "el",
+    prompt: "Ποιος είναι ο παίκτης με την παρακάτω καριέρα;",
+    type: "open",
+    media: { kind: "image", src: "/Images/Photo2.png" },
+
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Nicolas Otamendi"],
+    answer: "Nicolas Otamendi",
+  },
+
+  // 3) Missing from XI → Dejan Lovren (image)
+  {
+    id: "q3-missing-xi-lovren",
+    order: 4,
+    category: "Ενδεκάδα",
+    points: 1,
+    lang: "el",
+    prompt: "Ποιος παίκτης λείπει από την παρακάτω ενδεκάδα;",
+    type: "open",
+    media: { kind: "image", src: "/Images/Photo1.png" },
+
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Dejan Lovren"],
+    answer: "Dejan Lovren",
+  },
+
+
+
+  // 5) Iconic player → Zidane first pro club
+  {
+    id: "q5-zidane-first-club",
+    order: 5,
+    category: "Iconic Players",
+    points: 1,
+    lang: "el",
+    prompt:
+      "Ποιά ήταν η πρώτη ευρωπαική ομάδα που αγωνίστηκε ο βραζιλιάνος ποδοφαιριστής Kaká;",
+    type: "open",
+
+    answerMode: "catalog",
+    catalog: "teams",
+    accept: ["AC Milan", "Milan"],
+    answer: "AC Milan",
+  },
+
+  // 6) Player stats (image) → Granit Xhaka
+  {
+    id: "q6-player-stats-xhaka",
+    order: 6,
+    category: "Στατιστικά παίκτη",
+    points: 1,
+    lang: "el",
+    prompt: "Ποιος είναι ο παίκτης με τα παρακάτω στατιστικά;",
+    type: "open",
+    media: { kind: "image", src: "/Images/Photo3.png" },
+
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Roberto Carlos"],
+    answer: "Roberto Carlos",
+  },
+
+  // 7) CL League Phase — northernmost stadium (Bodø/Glimt)
+  {
+    id: "q7-cl-northernmost-stadium",
+    order: 7,
+    category: "Champions League",
+    points: 2,
+    lang: "el",
+    prompt:
+      "Ποιας ομάδας, που αγωνίζεται φέτος στη League Phase του Champions League, το στάδιο βρίσκεται βορειότερα;",
+    type: "open",
+
+    answerMode: "catalog",
+    catalog: "teams",
+    accept: ["FK Bodø/Glimt", "Bodø/Glimt", "Bodo/Glimt"],
+    answer: "FK Bodø/Glimt",
+  },
+
+  // 8) Atlético record sale after Griezmann → Lucas Hernandez
+  {
+    id: "q8-atletico-record-sale",
+    order: 8,
+    category: "Μεταγραφές",
+    points: 2,
+    lang: "el",
+    prompt:
+      "Ποιος ποδοσφαιριστής είναι η ακριβότερη πώληση της Ατλέτικο Μαδρίτης μετά τον Antoine Griezmann;",
+    type: "open",
+
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Lucas Hernandez", "Lucas Hernández"],
+    answer: "Lucas Hernandez to Bayern (2019)",
+  },
+
+  // 9) FINAL — Iconic Managers (numeric) — how many teams managed
+  {
+    id: "q9-iconic-managers-count",
+    order: 9,
+    category: "Τελική ερώτηση — Iconic Managers",
+    points: 1,
+    isFinal: true,
+    lang: "el",
+    prompt:
+      "Πόσες διαφορετικές ομάδες (και εθνικές) έχει προπονήσει ο παρακάτω προπονητής;",
+    type: "open",
+    media: { kind: "image", src: "/Images/Photo4.png", alt: "Photo quiz 1" },
+
+    answerMode: "numeric",
+    acceptNumber: 8,
+    answer:
+      "8 ομάδες: Niki Volos, Iraklis, APOEL, Panachaiki, Al Nasr, United Arab Emirates, Panathinaikos, Greece",
+  },
+];
