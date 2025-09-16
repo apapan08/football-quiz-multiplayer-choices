@@ -19,6 +19,7 @@ export default function PlayRoom() {
 
   const { ready, userId, name } = useSupabaseAuth();
   const roomRef = useRef(null);
+  const channelRef = useRef(null); // Store channel reference for manual tracking
 
   // Popup state
   const [showOverlay, setShowOverlay] = useState(false);
@@ -110,7 +111,8 @@ export default function PlayRoom() {
     };
   }, [ready, userId, code, nav, name]);
 
-  const { broadcastFinish, markFinishedInPresence } = useRoomChannel({
+  // Fixed: Only destructure functions that actually exist in useRoomChannel
+  const roomChannelData = useRoomChannel({
     code,
     user_id: userId,
     name: name || 'Player',
@@ -118,40 +120,45 @@ export default function PlayRoom() {
     onStart: () => {},
     onFinishBroadcast: () => refreshResults(),
   });
+  
+  const { broadcastFinish } = roomChannelData;
+  // Store the channel reference if we need it for manual presence updates
+  useEffect(() => {
+    if (roomChannelData.channel) {
+      channelRef.current = roomChannelData.channel;
+    }
+  }, [roomChannelData.channel]);
+
+  const hasFinishedRef = useRef(false);
 
   async function onFinish({ score, maxStreak, durationSeconds }) {
+    if (hasFinishedRef.current) return;
+    if (!ready || !userId) return;
+
+    hasFinishedRef.current = true;
     const room = roomRef.current;
     if (!room) return;
 
-    // Persist this run (RLS requires user_id == auth.uid())
-    const ins = await supabase.from('runs').insert({
-      room_id: room.id,
-      user_id: userId,
-      name: name || 'Player',
-      score,
-      max_streak: maxStreak,
-      duration_seconds: durationSeconds,
-    });
-    if (ins.error) {
-      console.error('runs insert failed:', ins.error);
+    // (choose upsert OR insert+duplicate handling)
+    const { error } = await supabase.from('runs').upsert(
+      { room_id: room.id, user_id: userId, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds },
+      { onConflict: 'room_id,user_id' }
+    );
+    if (error) {
+      hasFinishedRef.current = false; // allow retry only on real failure
+      console.error('runs upsert failed:', error);
       alert('Αποτυχία καταχώρησης αποτελέσματος (δείτε console).');
+      return;
     }
 
-    // Broadcast & mark presence
-    await broadcastFinish({
-      user_id: userId,
-      name: name || 'Player',
-      score,
-      max_streak: maxStreak,
-      duration_seconds: durationSeconds,
-    });
-    await markFinishedInPresence();
+    // Broadcast finish event with the score data
+    await broadcastFinish({ user_id: userId, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds });
+    
+    // Note: The finished status is already tracked in the broadcastFinish function
+    // in useRoomChannel.js (it calls channel.track with finished: true)
 
-    // Show popup instead of navigating away
     await refreshResults();
     setShowOverlay(true);
-    // If you still want the full page:
-    // nav(`/room/${code}/leaderboard`);
   }
 
   return (

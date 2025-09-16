@@ -28,17 +28,27 @@ export default function Landing() {
     nav(`/room/${room.code}`);
   }
 
-  async function joinRoom() {
-    const c = (code || '').toUpperCase().trim();
-    if (!c || c.length !== 5) { alert('Έγκυρος κωδικός 5 γραμμάτων'); return; }
-    if (!name.trim()) { alert('Βάλε ένα όνομα εμφάνισης'); return; }
-    const client = supabase;
-    const { data: room, error } = await client.from('rooms').select('*').eq('code', c).single();
-    if (error || !room) { alert('Το δωμάτιο δεν βρέθηκε'); return; }
-    await client.from('participants')
-      .upsert({ room_id: room.id, user_id: userId, name, is_host: false }, { onConflict: 'room_id,user_id' });
-    nav(`/room/${room.code}`);
-  }
+async function joinRoom() {
+  // do not write until auth session exists
+  if (!ready || !userId) return;
+
+  const c = (code || '').trim().toUpperCase();
+  if (!c || c.length !== 5) { alert('Έγκυρος κωδικός 5 γραμμάτων'); return; }
+  if (!name.trim()) { alert('Βάλε ένα όνομα εμφάνισης'); return; }
+
+  const client = supabase;
+  const { data: room, error } = await client.from('rooms').select('*').eq('code', c).single();
+  if (error || !room) { alert('Το δωμάτιο δεν βρέθηκε'); return; }
+
+  // upsert only after session is ready
+  await client.from('participants').upsert(
+    { room_id: room.id, user_id: userId, name, is_host: false },
+    { onConflict: 'room_id,user_id' }
+  );
+
+  nav(`/room/${room.code}`);
+}
+
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6"
