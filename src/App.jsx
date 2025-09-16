@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { questions as DATA_QUESTIONS } from "./data/questions";
 import ResultsTableResponsive from "./components/ResultsTableResponsive";
 
@@ -8,7 +8,6 @@ import AutoCompleteAnswer from "./components/AutoCompleteAnswer";
 import ScoreInput from "./components/ScoreInput";
 import { validate as baseValidate } from "./lib/validators";
 import { useMediaPrefetch } from "./hooks/useMediaPrefetch";
-
 
 // Media
 import Media from "./components/Media";
@@ -121,7 +120,11 @@ async function validateAny(q, value) {
   return baseValidate(q, value);
 }
 
-export default function QuizPrototype() {
+export default function QuizPrototype({
+  roomCode = null,
+  startedAtOverride = null,
+  onFinish = null,
+}) {
   // ——— Inject brand fonts + base CSS once ———
   useEffect(() => {
     let linkEl;
@@ -201,11 +204,10 @@ export default function QuizPrototype() {
   const [index, setIndex] = usePersistentState(`${STORAGE_KEY}:index`, 0);
   const [stage, setStage] = usePersistentState(`${STORAGE_KEY}:stage`, STAGES.NAME);
 
-const conn = typeof navigator !== "undefined" ? navigator.connection : null;
-const dynamicLookahead =
-  (conn?.saveData || /2g|3g/.test(conn?.effectiveType || "")) ? 1 : 2;
-useMediaPrefetch(QUESTIONS, index, dynamicLookahead);
-
+  const conn = typeof navigator !== "undefined" ? navigator.connection : null;
+  const dynamicLookahead =
+    (conn?.saveData || /2g|3g/.test(conn?.effectiveType || "")) ? 1 : 2;
+  useMediaPrefetch(QUESTIONS, index, dynamicLookahead);
 
   const lastIndex = QUESTIONS.length - 1;
   const isFinalIndex = index === lastIndex;
@@ -270,8 +272,6 @@ useMediaPrefetch(QUESTIONS, index, dynamicLookahead);
   // How-to
   const [showHowTo, setShowHowTo] = useState(false);
   const [introHowToShown, setIntroHowToShown] = useState(false); // per game
-
-
 
   // Final question tip
   const [showFinalHowTo, setShowFinalHowTo] = useState(false);
@@ -474,6 +474,7 @@ useMediaPrefetch(QUESTIONS, index, dynamicLookahead);
     setPlayerAnswers({});
     setIntroHowToShown(false);
     setFinalTipShown(false);
+    // keep startedAt as-is; it will be set again when INTRO is reached
   }
 
   async function exportShareCard() {
@@ -507,6 +508,39 @@ useMediaPrefetch(QUESTIONS, index, dynamicLookahead);
     a.download = "quiz-results.png";
     a.click();
   }
+
+  // ——— Multiplayer timing support ———
+  const [startedAt, setStartedAt] = usePersistentState(`${STORAGE_KEY}:startedAt`, null);
+
+  // Prefer broadcasted start time if provided (multiplayer)
+  useEffect(() => {
+    if (startedAtOverride && !startedAt) setStartedAt(startedAtOverride);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startedAtOverride]);
+
+  // In solo mode, set startedAt when the user first lands on INTRO
+  useEffect(() => {
+    if (stage === STAGES.INTRO && !startedAt) setStartedAt(Date.now());
+  }, [stage, startedAt, setStartedAt]);
+
+  // Fire onFinish exactly once when entering RESULTS (multiplayer integration)
+  const finishFiredRef = useRef(false);
+  useEffect(() => {
+    if (stage === STAGES.RESULTS && onFinish && !finishFiredRef.current) {
+      finishFiredRef.current = true;
+      const durSec = startedAt ? Math.max(0, Math.round((Date.now() - startedAt) / 1000)) : 0;
+      try {
+        onFinish({
+          score: p1.score,
+          maxStreak: p1.maxStreak,
+          durationSeconds: durSec,
+          roomCode,
+        });
+      } catch (e) {
+        // swallow to avoid UI break
+      }
+    }
+  }, [stage, onFinish, p1.score, p1.maxStreak, startedAt, roomCode]);
 
   // ——— UI subcomponents ———
   function HUDHeader({ stage, current, total, score, streak, justScored, justLostStreak }) {
@@ -570,125 +604,124 @@ useMediaPrefetch(QUESTIONS, index, dynamicLookahead);
   }
 
   // ——— Name Stage ———
-function NameStage() {
-  const [tempName, setTempName] = useState(p1.name || "");
-  const canProceed = tempName.trim().length >= 2;
+  function NameStage() {
+    const [tempName, setTempName] = useState(p1.name || "");
+    const canProceed = tempName.trim().length >= 2;
 
-  // Auto-open HowTo once at start (now on NAME stage, not INTRO)
-  useEffect(() => {
-    if (!introHowToShown) {
-      setShowHowTo(true);
-      setIntroHowToShown(true);
-    }
-  }, []); // runs once when NameStage mounts
+    // Auto-open HowTo once at start (now on NAME stage, not INTRO)
+    useEffect(() => {
+      if (!introHowToShown) {
+        setShowHowTo(true);
+        setIntroHowToShown(true);
+      }
+    }, []); // runs once when NameStage mounts
 
-  return (
-    <StageCard variant="howto">
-      <div className="text-center">
-        <h1 className="font-display text-3xl font-extrabold">Καλώς ήρθες!</h1>
-        <p className="mt-2 text-slate-300 font-ui">
-          Γράψε το όνομά σου — θα εμφανίζεται στο σκορ και στα αποτελέσματα.
-        </p>
+    return (
+      <StageCard variant="howto">
+        <div className="text-center">
+          <h1 className="font-display text-3xl font-extrabold">Καλώς ήρθες!</h1>
+          <p className="mt-2 text-slate-300 font-ui">
+            Γράψε το όνομά σου — θα εμφανίζεται στο σκορ και στα αποτελέσματα.
+          </p>
 
-        {/* Οδηγίες button here (start of game) */}
-        <div className="mt-3 flex justify-center">
-          <button onClick={() => setShowHowTo(true)} className="pill bg-white text-black">
-            🇬🇷 Οδηγίες
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-5 max-w-md mx-auto">
-        <div className="relative">
-          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center">👤</span>
-          <input
-            className="w-full rounded-xl bg-slate-900/60 px-3 py-3 pl-9 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
-            placeholder="π.χ. Goat"
-            value={tempName}
-            onChange={(e) => setTempName(e.target.value)}
-            maxLength={18}
-            autoFocus
-          />
+          {/* Οδηγίες button here (start of game) */}
+          <div className="mt-3 flex justify-center">
+            <button onClick={() => setShowHowTo(true)} className="pill bg-white text-black">
+              🇬🇷 Οδηγίες
+            </button>
+          </div>
         </div>
 
-        <div className="mt-5 flex justify-center">
-          <button
-            className="btn btn-accent px-6 py-3 text-base disabled:opacity-50"
-            onClick={() => {
-              setP1((s) => ({ ...s, name: tempName.trim() }));
-              setStage(STAGES.INTRO);
-            }}
-            disabled={!canProceed}
-          >
-            Προχώρα
-          </button>
-        </div>
-      </div>
-    </StageCard>
-  );
-}
+        <div className="mt-5 max-w-md mx-auto">
+          <div className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center">👤</span>
+            <input
+              className="w-full rounded-xl bg-slate-900/60 px-3 py-3 pl-9 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+              placeholder="π.χ. Goat"
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              maxLength={18}
+              autoFocus
+            />
+          </div>
 
+          <div className="mt-5 flex justify-center">
+            <button
+              className="btn btn-accent px-6 py-3 text-base disabled:opacity-50"
+              onClick={() => {
+                setP1((s) => ({ ...s, name: tempName.trim() }));
+                setStage(STAGES.INTRO);
+              }}
+              disabled={!canProceed}
+            >
+              Προχώρα
+            </button>
+          </div>
+        </div>
+      </StageCard>
+    );
+  }
 
   // ——— Intro Stage ———
-function IntroStage() {
-  const formatPoints = (ptsArr = []) => {
-    const pts = [...ptsArr].sort((a, b) => a - b);
-    if (pts.length <= 1) return `×${pts[0] ?? 1}`;
-    if (pts.length === 2) return `×${pts[0]} / ×${pts[1]}`;
-    return `×${pts[0]}–×${pts[pts.length - 1]}`;
-  };
+  function IntroStage() {
+    const formatPoints = (ptsArr = []) => {
+      const pts = [...ptsArr].sort((a, b) => a - b);
+      if (pts.length <= 1) return `×${pts[0] ?? 1}`;
+      if (pts.length === 2) return `×${pts[0]} / ×${pts[1]}`;
+      return `×${pts[0]}–×${pts[pts.length - 1]}`;
+    };
 
-  return (
-    <StageCard variant="howto">
-      <div className="text-center">
-        <h1 className="font-display text-3xl font-extrabold">Ποδοσφαιρικό Κουίζ</h1>
-        <p className="mt-2 text-slate-300 font-ui">
-          Δες τις κατηγορίες και πάτα «Ας παίξουμε» για να ξεκινήσεις.
-        </p>
-      </div>
+    return (
+      <StageCard variant="howto">
+        <div className="text-center">
+          <h1 className="font-display text-3xl font-extrabold">Ποδοσφαιρικό Κουίζ</h1>
+          <p className="mt-2 text-slate-300 font-ui">
+            Δες τις κατηγορίες και πάτα «Ας παίξουμε» για να ξεκινήσεις.
+          </p>
+        </div>
 
-      <div className="mt-6 rounded-2xl border border-slate-800/60 bg-slate-900/40">
-        <ul className="divide-y divide-slate-800/60">
-          {INTRO_CATEGORIES.map((c) => (
-            <li key={c.category} className="px-4 py-3 flex items-center justify-between">
-              <div className="min-w-0">
-                <div className="font-display text-base font-semibold">{c.category}</div>
-                {c.count > 1 && (
-                  <div className="text-xs text-slate-400 mt-0.5">x{c.count} ερωτήσεις</div>
-                )}
-              </div>
-              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset
-                                bg-fuchsia-600/20 text-fuchsia-300 ring-fuchsia-500/30">
-                {formatPoints(c.points)}
-              </span>
-            </li>
-          ))}
-
-          {finalCategoryName && (
-            <li className="px-4 py-3 flex items-center justify-between">
-              <div className="min-w-0">
-                <div className="font-display text-base font-semibold">
-                  Τελική ερώτηση — {finalTopicLabel}
+        <div className="mt-6 rounded-2xl border border-slate-800/60 bg-slate-900/40">
+          <ul className="divide-y divide-slate-800/60">
+            {INTRO_CATEGORIES.map((c) => (
+              <li key={c.category} className="px-4 py-3 flex items-center justify-between">
+                <div className="min-w-0">
+                  <div className="font-display text-base font-semibold">{c.category}</div>
+                  {c.count > 1 && (
+                    <div className="text-xs text-slate-400 mt-0.5">x{c.count} ερωτήσεις</div>
+                  )}
                 </div>
-                <div className="text-xs text-slate-400 mt-0.5">στοίχημα 0×–3×</div>
-              </div>
-              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset
+                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset
                                 bg-fuchsia-600/20 text-fuchsia-300 ring-fuchsia-500/30">
-                0×–3×
-              </span>
-            </li>
-          )}
-        </ul>
-      </div>
+                  {formatPoints(c.points)}
+                </span>
+              </li>
+            ))}
 
-      <div className="mt-6 flex justify-center">
-        <button onClick={next} className="btn btn-accent px-6 py-3 text-base">
-          Ας παίξουμε
-        </button>
-      </div>
-    </StageCard>
-  );
-}
+            {finalCategoryName && (
+              <li className="px-4 py-3 flex items-center justify-between">
+                <div className="min-w-0">
+                  <div className="font-display text-base font-semibold">
+                    Τελική ερώτηση — {finalTopicLabel}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-0.5">στοίχημα 0×–3×</div>
+                </div>
+                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset
+                                bg-fuchsia-600/20 text-fuchsia-300 ring-fuchsia-500/30">
+                  0×–3×
+                </span>
+              </li>
+            )}
+          </ul>
+        </div>
+
+        <div className="mt-6 flex justify-center">
+          <button onClick={next} className="btn btn-accent px-6 py-3 text-base">
+            Ας παίξουμε
+          </button>
+        </div>
+      </StageCard>
+    );
+  }
 
   function CategoryStage() {
     return (
@@ -751,349 +784,346 @@ function IntroStage() {
     );
   }
 
-function QuestionStage() {
-  const mode = q.answerMode || "text";
+  function QuestionStage() {
+    const mode = q.answerMode || "text";
 
-  // Local state for CATALOG
-  const [catPicked, setCatPicked] = useState(null);
-  const [catText, setCatText] = useState("");
+    // Local state for CATALOG
+    const [catPicked, setCatPicked] = useState(null);
+    const [catText, setCatText] = useState("");
 
-  // Local state for TEXT/NUMERIC
-  const [inputValue, setInputValue] = useState(() => playerAnswers[index] ?? "");
+    // Local state for TEXT/NUMERIC
+    const [inputValue, setInputValue] = useState(() => playerAnswers[index] ?? "");
 
-  // Local state for SCORELINE
-  const [scoreValue, setScoreValue] = useState(() =>
-    typeof playerAnswers[index] === "object" && playerAnswers[index] !== null
-      ? playerAnswers[index]
-      : { home: 0, away: 0 }
-  );
-
-  useEffect(() => {
-    setInputValue(playerAnswers[index] ?? "");
-    setScoreValue(
+    // Local state for SCORELINE
+    const [scoreValue, setScoreValue] = useState(() =>
       typeof playerAnswers[index] === "object" && playerAnswers[index] !== null
         ? playerAnswers[index]
         : { home: 0, away: 0 }
     );
-    setCatPicked(null);
-    setCatText("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
 
-// Replace the whole submitAndReveal with this version:
-const submitAndReveal = async (value) => {
-  let stored;
-  if (mode === "scoreline") {
-    stored = value;
-  } else if (mode === "numeric") {
-    if (value === "" || value === null || value === undefined) {
-      stored = { value: null };
-    } else {
-      const n = Number(value);
-      stored = { value: Number.isFinite(n) ? n : null };
-    }
-  } else {
-    stored = value;
-  }
+    useEffect(() => {
+      setInputValue(playerAnswers[index] ?? "");
+      setScoreValue(
+        typeof playerAnswers[index] === "object" && playerAnswers[index] !== null
+          ? playerAnswers[index]
+          : { home: 0, away: 0 }
+      );
+      setCatPicked(null);
+      setCatText("");
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [index]);
 
-  // Persist what the player entered (even if blank)
-  setPlayerAnswers((prev) => ({
-    ...prev,
-    [index]: typeof stored === "object" && stored?.name ? stored.name : stored,
-  }));
+    // Replace the whole submitAndReveal with this version:
+    const submitAndReveal = async (value) => {
+      let stored;
+      if (mode === "scoreline") {
+        stored = value;
+      } else if (mode === "numeric") {
+        if (value === "" || value === null || value === undefined) {
+          stored = { value: null };
+        } else {
+          const n = Number(value);
+          stored = { value: Number.isFinite(n) ? n : null };
+        }
+      } else {
+        stored = value;
+      }
 
-  // Detect explicit "I don't know" for auto-marking modes and mark as wrong immediately
-  const isAutoMode = mode !== "text";
-  const isIDontKnow =
-    (mode === "numeric" && (stored == null || stored.value == null)) ||
-    (mode === "scoreline" && (stored === "")) ||
-    (mode === "catalog" && (!stored || (typeof stored === "string" && stored.trim() === "")));
+      // Persist what the player entered (even if blank)
+      setPlayerAnswers((prev) => ({
+        ...prev,
+        [index]: typeof stored === "object" && stored?.name ? stored.name : stored,
+      }));
 
-  if (isAutoMode && isIDontKnow) {
-    if (!isFinalIndex) {
-      // instant wrong + reset streak
-      setAnswered((a) => ({ ...a, [index]: "wrong" }));
-      noAnswer();
-    } else {
-      // final question: apply loss immediately
-      finalizeOutcomeP1("wrong");
-    }
-    setStage(STAGES.ANSWER);
-    return; // skip validation
-  }
+      // Detect explicit "I don't know" for auto-marking modes and mark as wrong immediately
+      const isAutoMode = mode !== "text";
+      const isIDontKnow =
+        (mode === "numeric" && (stored == null || stored.value == null)) ||
+        (mode === "scoreline" && (stored === "")) ||
+        (mode === "catalog" && (!stored || (typeof stored === "string" && stored.trim() === "")));
 
-  // Otherwise, keep existing behavior
-  setStage(STAGES.ANSWER);
+      if (isAutoMode && isIDontKnow) {
+        if (!isFinalIndex) {
+          // instant wrong + reset streak
+          setAnswered((a) => ({ ...a, [index]: "wrong" }));
+          noAnswer();
+        } else {
+          // final question: apply loss immediately
+          finalizeOutcomeP1("wrong");
+        }
+        setStage(STAGES.ANSWER);
+        return; // skip validation
+      }
 
-  if (isAutoMode) {
-    const result = await validateAny(q, stored?.name ? stored : stored);
-    if (!isFinalIndex) {
-      setAnswered((a) => ({ ...a, [index]: result.correct ? "correct" : "wrong" }));
-      if (result.correct) awardToP1(1);
-      else noAnswer();
-    } else {
-      finalizeOutcomeP1(result.correct ? "correct" : "wrong");
-    }
-  }
-};
+      // Otherwise, keep existing behavior
+      setStage(STAGES.ANSWER);
 
+      if (isAutoMode) {
+        const result = await validateAny(q, stored?.name ? stored : stored);
+        if (!isFinalIndex) {
+          setAnswered((a) => ({ ...a, [index]: result.correct ? "correct" : "wrong" }));
+          if (result.correct) awardToP1(1);
+          else noAnswer();
+        } else {
+          finalizeOutcomeP1(result.correct ? "correct" : "wrong");
+        }
+      }
+    };
 
-  return (
-    <StageCard>
-      {/* Header: logo left, chips right */}
-      <div className="flex items-center justify-between">
-        <Logo /> 
-        <div className="flex items-center gap-2">
-          <div className="rounded-full bg-slate-700/70 px-3 py-1 text-xs font-semibold">
-            {isFinalIndex ? "Τελικός 0×–3×" : `Κατηγορία ×${q.points || 1}`}
-          </div>
-          {isX2ActiveFor("p1") && !isFinalIndex && (
-            <div
-              className="rounded-full px-3 py-1 text-xs font-semibold text-white"
-              style={{ background: THEME.badgeGradient }}
-              title="Χ2 ενεργό"
-            >
-              ×2
+    return (
+      <StageCard>
+        {/* Header: logo left, chips right */}
+        <div className="flex items-center justify-between">
+          <Logo />
+          <div className="flex items-center gap-2">
+            <div className="rounded-full bg-slate-700/70 px-3 py-1 text-xs font-semibold">
+              {isFinalIndex ? "Τελικός 0×–3×" : `Κατηγορία ×${q.points || 1}`}
             </div>
-          )}
-        </div>
-      </div>
-
-      <h3 className="mt-4 font-display text-2xl font-bold leading-snug">{q.prompt}</h3>
-
-      {/* Media */}
-      <div className="mt-4">
-        <Media media={{ ...q.media, priority: true }} />
-      </div>
-
-      {/* CATALOG */}
-      {mode === "catalog" && (
-        <div className="mt-5">
-          <AutoCompleteAnswer
-            catalog={q.catalog}
-            placeholder="Άρχισε να πληκτρολογείς…"
-            onSelect={(item) => setCatPicked(item)}
-            onChangeText={(t) => setCatText(t)}
-          />
-          <div className="flex flex-wrap gap-3 justify-center mt-3">
-            <button
-              type="button"
-              className="btn btn-accent"
-              onClick={() => {
-                const toSubmit = (catPicked && catPicked.name) ? catPicked : catText;
-                submitAndReveal(toSubmit);
-              }}
-              disabled={!((catPicked && catPicked.name) || (catText && catText.trim().length > 0))}
-            >
-              Υποβολή
-            </button>
-            <button type="button" className="btn btn-neutral" onClick={() => submitAndReveal("")}>
-              Δεν γνωρίζω
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* SCORELINE */}
-      {mode === "scoreline" && (
-        <div className="mt-5 flex flex-col items-center gap-3">
-          <ScoreInput value={scoreValue} onChange={(v) => setScoreValue(v)} />
-          <div className="flex flex-wrap gap-3 justify-center">
-            <button type="button" className="btn btn-accent" onClick={() => submitAndReveal(scoreValue)}>
-              Υποβολή σκορ
-            </button>
-            <button type="button" className="btn btn-neutral" onClick={() => submitAndReveal("")}>
-              Δεν γνωρίζω
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* NUMERIC */}
-      {mode === "numeric" && (
-        <form
-          className="mt-5 flex flex-col items-stretch gap-3"
-          onSubmit={(e) => { e.preventDefault(); submitAndReveal(inputValue); }}
-        >
-          <input
-            type="number"
-            inputMode="numeric"
-            className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
-            placeholder="Πληκτρολόγησε αριθμό…"
-            value={inputValue ?? ""}
-            onChange={(e) => setInputValue(e.target.value)}
-          />
-          <div className="flex flex-wrap gap-3 justify-center">
-            <button type="submit" className="btn btn-accent">Υποβολή</button>
-            <button type="button" className="btn btn-neutral" onClick={() => submitAndReveal("")}>
-              Δεν γνωρίζω
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* TEXT */}
-      {mode === "text" && (
-        <form
-          className="mt-5 flex flex-col items-stretch gap-3"
-          onSubmit={(e) => { e.preventDefault(); submitAndReveal(inputValue); }}
-        >
-          <input
-            className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
-            placeholder="Γράψε την απάντησή σου…"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            autoComplete="off"
-            autoCapitalize="sentences"
-            spellCheck={false}
-          />
-          <div className="flex flex-wrap gap-3 justify-center">
-            <button type="submit" className="btn btn-accent">Υποβολή</button>
-            <button
-              type="button"
-              className="btn btn-neutral"
-              onClick={() => submitAndReveal("")}
-              title="Μετάβαση στην απάντηση χωρίς να δοθεί λύση"
-            >
-              Δεν γνωρίζω
-            </button>
-          </div>
-        </form>
-      )}
-    </StageCard>
-  );
-}
-
-
-function AnswerStage() {
-  const mode = q.answerMode || "text";
-  const rawUser = (playerAnswers && playerAnswers[index]) ?? "";
-
-  let userAnswerStr = "—";
-  if (mode === "scoreline" && rawUser && typeof rawUser === "object") {
-    userAnswerStr = `${rawUser.home ?? 0} - ${rawUser.away ?? 0}`;
-  } else if (mode === "numeric" && rawUser && typeof rawUser === "object") {
-    userAnswerStr = rawUser.value != null ? String(rawUser.value) : "—";
-  } else {
-    userAnswerStr = rawUser ? String(rawUser) : "—";
-  }
-
-  const outcomeKey = answered[index];
-  const currentRow = RESULT_ROWS[index] || null;
-  const isCorrect = outcomeKey === "correct" || outcomeKey === "final-correct";
-  const isWrong   = outcomeKey === "wrong"   || outcomeKey === "final-wrong";
-  const deltaPts  = currentRow ? currentRow.delta : 0;
-
-  return (
-    <StageCard>
-      {/* Header: show logo on the left; optional chip on the right */}
-      <div className="flex items-center justify-between">
-        <Logo />
-        <div className="rounded-full bg-slate-700/70 px-3 py-1 text-xs font-semibold">
-          {isFinalIndex ? "Τελικός 0×–3×" : `Κατηγορία ×${q.points || 1}`}
-        </div>
-      </div>
-
-      <div className="text-center mt-4">
-        <div className="font-display text-3xl font-extrabold">{q.answer}</div>
-
-        <div className="mt-3 font-ui text-sm">
-          <div
-            className="inline-flex items-center gap-2 rounded-lg px-3 py-2"
-            style={{
-              background: isCorrect
-                ? "rgba(16,185,129,0.15)"
-                : isWrong
-                ? "rgba(244,63,94,0.15)"
-                : "rgba(148,163,184,0.10)",
-              border: "1px solid rgba(255,255,255,0.12)",
-            }}
-          >
-            <span style={{ opacity: 0.85 }}>Απάντηση Παίκτη:</span>
-            <span className="italic text-slate-100">{userAnswerStr}</span>
-
-            {(isCorrect || isWrong) && (
-              <span
-                className="ml-2 rounded-full px-2.5 py-0.5 text-xs font-bold text-white"
-                style={{ background: isCorrect ? THEME.positiveGrad : THEME.negativeGrad }}
-                title={isCorrect ? "Σωστό" : "Λάθος"}
+            {isX2ActiveFor("p1") && !isFinalIndex && (
+              <div
+                className="rounded-full px-3 py-1 text-xs font-semibold text-white"
+                style={{ background: THEME.badgeGradient }}
+                title="Χ2 ενεργό"
               >
-                {isCorrect ? "✔" : "✘"} {deltaPts >= 0 ? `+${deltaPts}` : `${deltaPts}`}
-              </span>
+                ×2
+              </div>
             )}
           </div>
         </div>
 
-        {q.fact && <div className="mt-2 font-ui text-sm text-slate-300">ℹ️ {q.fact}</div>}
-      </div>
+        <h3 className="mt-4 font-display text-2xl font-bold leading-snug">{q.prompt}</h3>
 
-      <div className="mt-3 text-center text-xs text-slate-400 font-ui">
-        {isX2ActiveFor("p1") && !isFinalIndex && <span>(×2 ενεργό)</span>}
-      </div>
-
-      {/* Manual awarding controls (only for text mode) */}
-      {!isFinalIndex && mode === "text" && (
-        <div className="mt-6 flex flex-col items-center gap-3 font-ui">
-          <div className="flex flex-wrap justify-center gap-2">
-            <button
-              className="btn text-white"
-              style={{ background: THEME.positiveGrad }}
-              onClick={() => { awardToP1(1); setAnswered((a) => ({ ...a, [index]: "correct" })); next(); }}
-              title="Σωστό"
-            >
-              Σωστό
-            </button>
-            <button
-              className="btn text-white"
-              style={{ background: THEME.negativeGrad }}
-              onClick={() => { noAnswer(); setAnswered((a) => ({ ...a, [index]: "wrong" })); next(); }}
-              title="Λάθος / Καμία απάντηση — μηδενίζει το σερί"
-            >
-              Λάθος / Καμία απάντηση
-            </button>
-          </div>
+        {/* Media */}
+        <div className="mt-4">
+          <Media media={{ ...q.media, priority: true }} />
         </div>
-      )}
 
-      {/* Final scoring controls on last question (text mode only) */}
-      {isFinalIndex && mode === "text" && (
-        <div className="card font-ui mt-6 text-center">
-          <div className="mb-2 text-sm text-slate-300">
-            Τελικός — Απονέμονται πόντοι βάσει πονταρίσματος
-          </div>
-          <div className="text-xs text-slate-400 mb-3">Το Χ2 δεν ισχύει στον Τελικό.</div>
-          <div className="space-y-2">
-            <div className="text-sm text-slate-300">{p1.name}</div>
-            <div className="flex flex-wrap justify-center gap-2">
+        {/* CATALOG */}
+        {mode === "catalog" && (
+          <div className="mt-5">
+            <AutoCompleteAnswer
+              catalog={q.catalog}
+              placeholder="Άρχισε να πληκτρολογείς…"
+              onSelect={(item) => setCatPicked(item)}
+              onChangeText={(t) => setCatText(t)}
+            />
+            <div className="flex flex-wrap gap-3 justify-center mt-3">
               <button
-                disabled={finalResolved.p1}
-                onClick={() => { finalizeOutcomeP1("correct"); next(); }}
-                className="btn text-white disabled:opacity-50"
-                style={{ background: THEME.positiveGrad }}
+                type="button"
+                className="btn btn-accent"
+                onClick={() => {
+                  const toSubmit = (catPicked && catPicked.name) ? catPicked : catText;
+                  submitAndReveal(toSubmit);
+                }}
+                disabled={!((catPicked && catPicked.name) || (catText && catText.trim().length > 0))}
               >
-                Σωστό +{wager.p1}
+                Υποβολή
               </button>
-              <button
-                disabled={finalResolved.p1}
-                onClick={() => { finalizeOutcomeP1("wrong"); next(); }}
-                className="btn text-white disabled:opacity-50"
-                style={{ background: THEME.negativeGrad }}
-              >
-                Λάθος −{wager.p1}
+              <button type="button" className="btn btn-neutral" onClick={() => submitAndReveal("")}>
+                Δεν γνωρίζω
               </button>
-              {finalResolved.p1 && <span className="text-xs text-emerald-300">Ολοκληρώθηκε ✔</span>}
             </div>
           </div>
+        )}
+
+        {/* SCORELINE */}
+        {mode === "scoreline" && (
+          <div className="mt-5 flex flex-col items-center gap-3">
+            <ScoreInput value={scoreValue} onChange={(v) => setScoreValue(v)} />
+            <div className="flex flex-wrap gap-3 justify-center">
+              <button type="button" className="btn btn-accent" onClick={() => submitAndReveal(scoreValue)}>
+                Υποβολή σκορ
+              </button>
+              <button type="button" className="btn btn-neutral" onClick={() => submitAndReveal("")}>
+                Δεν γνωρίζω
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* NUMERIC */}
+        {mode === "numeric" && (
+          <form
+            className="mt-5 flex flex-col items-stretch gap-3"
+            onSubmit={(e) => { e.preventDefault(); submitAndReveal(inputValue); }}
+          >
+            <input
+              type="number"
+              inputMode="numeric"
+              className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+              placeholder="Πληκτρολόγησε αριθμό…"
+              value={inputValue ?? ""}
+              onChange={(e) => setInputValue(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-3 justify-center">
+              <button type="submit" className="btn btn-accent">Υποβολή</button>
+              <button type="button" className="btn btn-neutral" onClick={() => submitAndReveal("")}>
+                Δεν γνωρίζω
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* TEXT */}
+        {mode === "text" && (
+          <form
+            className="mt-5 flex flex-col items-stretch gap-3"
+            onSubmit={(e) => { e.preventDefault(); submitAndReveal(inputValue); }}
+          >
+            <input
+              className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+              placeholder="Γράψε την απάντησή σου…"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              autoComplete="off"
+              autoCapitalize="sentences"
+              spellCheck={false}
+            />
+            <div className="flex flex-wrap gap-3 justify-center">
+              <button type="submit" className="btn btn-accent">Υποβολή</button>
+              <button
+                type="button"
+                className="btn btn-neutral"
+                onClick={() => submitAndReveal("")}
+                title="Μετάβαση στην απάντηση χωρίς να δοθεί λύση"
+              >
+                Δεν γνωρίζω
+              </button>
+            </div>
+          </form>
+        )}
+      </StageCard>
+    );
+  }
+
+  function AnswerStage() {
+    const mode = q.answerMode || "text";
+    const rawUser = (playerAnswers && playerAnswers[index]) ?? "";
+
+    let userAnswerStr = "—";
+    if (mode === "scoreline" && rawUser && typeof rawUser === "object") {
+      userAnswerStr = `${rawUser.home ?? 0} - ${rawUser.away ?? 0}`;
+    } else if (mode === "numeric" && rawUser && typeof rawUser === "object") {
+      userAnswerStr = rawUser.value != null ? String(rawUser.value) : "—";
+    } else {
+      userAnswerStr = rawUser ? String(rawUser) : "—";
+    }
+
+    const outcomeKey = answered[index];
+    const currentRow = RESULT_ROWS[index] || null;
+    const isCorrect = outcomeKey === "correct" || outcomeKey === "final-correct";
+    const isWrong   = outcomeKey === "wrong"   || outcomeKey === "final-wrong";
+    const deltaPts  = currentRow ? currentRow.delta : 0;
+
+    return (
+      <StageCard>
+        {/* Header: show logo on the left; optional chip on the right */}
+        <div className="flex items-center justify-between">
+          <Logo />
+          <div className="rounded-full bg-slate-700/70 px-3 py-1 text-xs font-semibold">
+            {isFinalIndex ? "Τελικός 0×–3×" : `Κατηγορία ×${q.points || 1}`}
+          </div>
         </div>
-      )}
 
-      <div className="mt-6 flex justify-center">
-        <NavButtons />
-      </div>
-    </StageCard>
-  );
-}
+        <div className="text-center mt-4">
+          <div className="font-display text-3xl font-extrabold">{q.answer}</div>
 
+          <div className="mt-3 font-ui text-sm">
+            <div
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-2"
+              style={{
+                background: isCorrect
+                  ? "rgba(16,185,129,0.15)"
+                  : isWrong
+                  ? "rgba(244,63,94,0.15)"
+                  : "rgba(148,163,184,0.10)",
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              <span style={{ opacity: 0.85 }}>Απάντηση Παίκτη:</span>
+              <span className="italic text-slate-100">{userAnswerStr}</span>
+
+              {(isCorrect || isWrong) && (
+                <span
+                  className="ml-2 rounded-full px-2.5 py-0.5 text-xs font-bold text-white"
+                  style={{ background: isCorrect ? THEME.positiveGrad : THEME.negativeGrad }}
+                  title={isCorrect ? "Σωστό" : "Λάθος"}
+                >
+                  {isCorrect ? "✔" : "✘"} {deltaPts >= 0 ? `+${deltaPts}` : `${deltaPts}`}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {q.fact && <div className="mt-2 font-ui text-sm text-slate-300">ℹ️ {q.fact}</div>}
+        </div>
+
+        <div className="mt-3 text-center text-xs text-slate-400 font-ui">
+          {isX2ActiveFor("p1") && !isFinalIndex && <span>(×2 ενεργό)</span>}
+        </div>
+
+        {/* Manual awarding controls (only for text mode) */}
+        {!isFinalIndex && mode === "text" && (
+          <div className="mt-6 flex flex-col items-center gap-3 font-ui">
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                className="btn text-white"
+                style={{ background: THEME.positiveGrad }}
+                onClick={() => { awardToP1(1); setAnswered((a) => ({ ...a, [index]: "correct" })); next(); }}
+                title="Σωστό"
+              >
+                Σωστό
+              </button>
+              <button
+                className="btn text-white"
+                style={{ background: THEME.negativeGrad }}
+                onClick={() => { noAnswer(); setAnswered((a) => ({ ...a, [index]: "wrong" })); next(); }}
+                title="Λάθος / Καμία απάντηση — μηδενίζει το σερί"
+              >
+                Λάθος / Καμία απάντηση
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Final scoring controls on last question (text mode only) */}
+        {isFinalIndex && mode === "text" && (
+          <div className="card font-ui mt-6 text-center">
+            <div className="mb-2 text-sm text-slate-300">
+              Τελικός — Απονέμονται πόντοι βάσει πονταρίσματος
+            </div>
+            <div className="text-xs text-slate-400 mb-3">Το Χ2 δεν ισχύει στον Τελικό.</div>
+            <div className="space-y-2">
+              <div className="text-sm text-slate-300">{p1.name}</div>
+              <div className="flex flex-wrap justify-center gap-2">
+                <button
+                  disabled={finalResolved.p1}
+                  onClick={() => { finalizeOutcomeP1("correct"); next(); }}
+                  className="btn text-white disabled:opacity-50"
+                  style={{ background: THEME.positiveGrad }}
+                >
+                  Σωστό +{wager.p1}
+                </button>
+                <button
+                  disabled={finalResolved.p1}
+                  onClick={() => { finalizeOutcomeP1("wrong"); next(); }}
+                  className="btn text-white disabled:opacity-50"
+                  style={{ background: THEME.negativeGrad }}
+                >
+                  Λάθος −{wager.p1}
+                </button>
+                {finalResolved.p1 && <span className="text-xs text-emerald-300">Ολοκληρώθηκε ✔</span>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 flex justify-center">
+          <NavButtons />
+        </div>
+      </StageCard>
+    );
+  }
 
   function ResultsStage() {
     const rows = useMemo(
@@ -1397,7 +1427,7 @@ function FinalHowToModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-      <div className="fixed inset-0 bg-black/60" onClick={onClose} />
+    <div className="fixed inset-0 bg-black/60" onClick={onClose} />
       <div className="min-h-full flex items-start sm:items-center justify-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <div className="relative w-full max-w-[640px] font-ui rounded-2xl shadow-xl ring-1 ring-white/10 bg-[var(--howto-bg)] text-slate-100 flex flex-col overflow-hidden">
           <div className="sticky top-0 z-10 px-6 py-4 bg-[var(--howto-bg)] backdrop-blur-sm rounded-t-2xl flex items-center justify-between border-b border-white/10">
