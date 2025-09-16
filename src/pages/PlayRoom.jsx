@@ -71,6 +71,7 @@ export default function PlayRoom() {
       roomCode={code}
       startedAtOverride={startedAt}
       onFinish={onFinish}
+      playerName={(name || 'Player').trim()}
     />
   );
 }

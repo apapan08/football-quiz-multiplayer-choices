@@ -124,6 +124,8 @@ export default function QuizPrototype({
   roomCode = null,
   startedAtOverride = null,
   onFinish = null,
+  // NEW: playerName passed from page (Landing/PlayRoom/Solo)
+  playerName = null,
 }) {
   // ——— Inject brand fonts + base CSS once ———
   useEffect(() => {
@@ -202,7 +204,12 @@ export default function QuizPrototype({
 
   // ——— Core game state ———
   const [index, setIndex] = usePersistentState(`${STORAGE_KEY}:index`, 0);
-  const [stage, setStage] = usePersistentState(`${STORAGE_KEY}:stage`, STAGES.NAME);
+
+  // INITIAL STAGE: if we have a name from the page, start at INTRO; else ask for it
+  const [stage, setStage] = usePersistentState(
+    `${STORAGE_KEY}:stage`,
+    (playerName && playerName.trim()) ? STAGES.INTRO : STAGES.NAME
+  );
 
   const conn = typeof navigator !== "undefined" ? navigator.connection : null;
   const dynamicLookahead =
@@ -239,11 +246,26 @@ export default function QuizPrototype({
 
   // Player
   const [p1, setP1] = usePersistentState(`${STORAGE_KEY}:p1`, {
-    name: "",
+    // seed from page when available
+    name: playerName || "",
     score: 0,
     streak: 0,
     maxStreak: 0,
   });
+
+  // keep name in sync if prop changes (e.g., auth hook updated)
+  useEffect(() => {
+    if (playerName && playerName.trim() && playerName !== p1.name) {
+      setP1((s) => ({ ...s, name: playerName.trim().slice(0, 18) }));
+    }
+  }, [playerName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If we somehow land on NAME with a known name, auto-skip to INTRO
+  useEffect(() => {
+    if (stage === STAGES.NAME && (p1.name?.trim() || playerName?.trim())) {
+      setStage(STAGES.INTRO);
+    }
+  }, [stage, p1.name, playerName, setStage]);
 
   const [lastCorrect, setLastCorrect] = usePersistentState(
     `${STORAGE_KEY}:lastCorrect`,
@@ -272,6 +294,14 @@ export default function QuizPrototype({
   // How-to
   const [showHowTo, setShowHowTo] = useState(false);
   const [introHowToShown, setIntroHowToShown] = useState(false); // per game
+
+  // If we skipped NameStage straight to INTRO, still auto-open HowTo once
+  useEffect(() => {
+    if (stage === STAGES.INTRO && !introHowToShown) {
+      setShowHowTo(true);
+      setIntroHowToShown(true);
+    }
+  }, [stage, introHowToShown]);
 
   // Final question tip
   const [showFinalHowTo, setShowFinalHowTo] = useState(false);
@@ -464,7 +494,8 @@ export default function QuizPrototype({
 
   function resetGame() {
     setIndex(0);
-    setStage(STAGES.NAME);
+    // Go to INTRO if we have a name (from prop or saved), else ask for it
+    setStage((p1.name || playerName) ? STAGES.INTRO : STAGES.NAME);
     setP1({ name: p1.name, score: 0, streak: 0, maxStreak: 0 });
     setWager({ p1: 0 });
     setFinalResolved({ p1: false });
@@ -1055,6 +1086,7 @@ export default function QuizPrototype({
             </div>
           </div>
 
+        {/* fact */}
           {q.fact && <div className="mt-2 font-ui text-sm text-slate-300">ℹ️ {q.fact}</div>}
         </div>
 
@@ -1340,7 +1372,7 @@ export default function QuizPrototype({
         {showFinalHowTo && <FinalHowToModal onClose={() => setShowFinalHowTo(false)} />}
 
         {/* Stages */}
-        {stage === STAGES.NAME && <NameStage />}
+        {stage === STAGES.NAME && !p1.name && <NameStage />}
         {stage === STAGES.INTRO && <IntroStage />}
         {stage === STAGES.CATEGORY && <CategoryStage />}
         {stage === STAGES.QUESTION && <QuestionStage />}
