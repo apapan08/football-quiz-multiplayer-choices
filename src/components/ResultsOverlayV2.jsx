@@ -2,8 +2,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import supabase from "../lib/supabaseClient";
 
+// ---------- helpers ----------
 function ordinal(n) {
-  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
   const suf = s[(v - 20) % 10] || s[v] || s[0];
   return `${n}${suf.toUpperCase()}`;
 }
@@ -15,24 +16,30 @@ function fmtTime(sec) {
 }
 
 const styles = {
-  modal:"fixed inset-0 z-50 grid place-items-center p-4",
-  backdrop:"absolute inset-0 bg-black/60",
-  panel:"relative w-full max-w-2xl rounded-2xl bg-slate-900/95 ring-1 ring-white/10 shadow-xl overflow-hidden",
-  header:"px-6 py-4 border-b border-white/10 flex items-center justify-between",
-  title:"font-display text-2xl font-extrabold text-white",
-  close:"w-9 h-9 rounded-xl bg-white text-slate-900 grid place-items-center font-bold",
-  tabs:"px-3 pt-3 flex gap-2",
-  tabBtn:"px-3 py-1.5 rounded-full text-sm font-bold",
-  tabActive:"bg-pink-600 text-white",
-  tabIdle:"bg-white/10 text-white/80 hover:bg-white/15",
-  body:"px-3 pb-5 pt-2",
-  tableWrap:"overflow-hidden rounded-xl ring-1 ring-white/10",
-  table:"min-w-full text-sm text-slate-200",
-  th:"text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5",
-  td:"px-4 py-2 border-t border-white/10",
-  youRow:"bg-lime-400/25",
+  modal: "fixed inset-0 z-50 grid place-items-center p-4",
+  backdrop: "absolute inset-0 bg-black/60",
+  panel: "relative w-full max-w-2xl rounded-2xl bg-slate-900/95 ring-1 ring-white/10 shadow-xl overflow-hidden",
+  header: "px-6 py-4 border-b border-white/10 flex items-center justify-between",
+  title: "font-display text-2xl font-extrabold text-white",
+  close: "w-9 h-9 rounded-xl bg-white text-slate-900 grid place-items-center font-bold",
+  tabs: "px-3 pt-3 flex gap-2",
+  tabBtn: "px-3 py-1.5 rounded-full text-sm font-bold",
+  tabActive: "bg-pink-600 text-white",
+  tabIdle: "bg-white/10 text-white/80 hover:bg-white/15",
+  body: "px-3 pb-5 pt-2",
+  tableWrap: "overflow-hidden rounded-xl ring-1 ring-white/10",
+  table: "min-w-full text-sm text-slate-200",
+  th: "text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5",
+  td: "px-4 py-2 border-t border-white/10",
+  youRow: "bg-lime-400/25",
 };
 
+// NOTE: runs table uses finished_at (not created_at)
+const RUNS_COLS = "user_id,name,score,max_streak,duration_seconds,finished_at";
+// Global table still has created_at
+const GLB_COLS  = "user_id,name,score,duration_seconds,created_at";
+
+// ---------- room data ----------
 function useRoomData(roomCode, youId, seedRow) {
   const [room, setRoom] = useState(null);
   const [runs, setRuns] = useState(seedRow ? [seedRow] : []);
@@ -40,10 +47,11 @@ function useRoomData(roomCode, youId, seedRow) {
 
   const sorted = useMemo(() => {
     const arr = [...runs];
-    arr.sort((a, b) =>
-      (b.score - a.score) ||
-      ((a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9)) ||
-      (new Date(a.created_at) - new Date(b.created_at))
+    arr.sort(
+      (a, b) =>
+        (b.score - a.score) ||
+        ((a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9)) ||
+        (new Date(a.finished_at ?? 0) - new Date(b.finished_at ?? 0))
     );
     return arr;
   }, [runs]);
@@ -51,103 +59,112 @@ function useRoomData(roomCode, youId, seedRow) {
   useEffect(() => {
     if (!roomCode) return;
     let channel;
+    let cancelled = false;
+
     (async () => {
-      const { data: r } = await supabase.from("rooms").select("*").eq("code", roomCode).single();
-      if (!r) return;
+      const { data: r, error: rErr } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("code", roomCode)
+        .single();
+
+      if (rErr || !r) {
+        console.error("[overlay] rooms select error:", rErr);
+        return;
+      }
       setRoom(r);
 
       const [runsRes, partsRes] = await Promise.all([
-        supabase
-          .from("runs")
-          .select("user_id,name,score,max_streak,duration_seconds,created_at")
-          .eq("room_id", r.id),
-        supabase
-          .from("participants")
-          .select("user_id")
-          .eq("room_id", r.id),
+        supabase.from("runs").select(RUNS_COLS).eq("room_id", r.id),
+        supabase.from("participants").select("user_id").eq("room_id", r.id),
       ]);
 
-      const fromDb = runsRes.data || [];
-      setRuns(prev => {
-        const map = new Map();
-        [...prev, ...fromDb].forEach(row => {
-          if (!row) return;
-          map.set(row.user_id, { ...(map.get(row.user_id) || {}), ...row });
-        });
-        return Array.from(map.values());
-      });
+      if (runsRes.error) console.error("[overlay] runs select error:", runsRes.error);
+      if (partsRes.error) console.error("[overlay] participants select error:", partsRes.error);
 
-      setTotalPlayers((partsRes.data || []).length);
+      // Prefer DB snapshot over seed row once available
+      if (!cancelled && runsRes.data) setRuns(runsRes.data);
+      if (!cancelled && partsRes.data) setTotalPlayers(partsRes.data.length);
+
+      const upsertRun = (n) => {
+        setRuns((prev) => {
+          const i = prev.findIndex((x) => x.user_id === n.user_id);
+          if (i >= 0) {
+            const cp = [...prev];
+            cp[i] = { ...cp[i], ...n };
+            return cp;
+          }
+          return [...prev, n];
+        });
+      };
 
       channel = supabase
         .channel(`overlay:${r.id}`)
         .on(
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "runs", filter: `room_id=eq.${r.id}` },
-          (payload) => {
-            const n = payload.new;
-            setRuns(prev => {
-              const i = prev.findIndex(x => x.user_id === n.user_id);
-              if (i >= 0) { const cp = [...prev]; cp[i] = { ...cp[i], ...n }; return cp; }
-              return [...prev, n];
-            });
-          }
+          (payload) => upsertRun(payload.new)
         )
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "runs", filter: `room_id=eq.${r.id}` },
-          (payload) => {
-            const n = payload.new;
-            setRuns(prev => {
-              const i = prev.findIndex(x => x.user_id === n.user_id);
-              if (i >= 0) { const cp = [...prev]; cp[i] = { ...cp[i], ...n }; return cp; }
-              return [...prev, n];
-            });
-          }
+          (payload) => upsertRun(payload.new)
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "participants", filter: `room_id=eq.${r.id}` },
           async () => {
-            const { data } = await supabase.from("participants").select("user_id").eq("room_id", r.id);
+            const { data, error } = await supabase
+              .from("participants")
+              .select("user_id")
+              .eq("room_id", r.id);
+            if (error) console.error("[overlay] participants refresh error:", error);
             setTotalPlayers((data || []).length);
           }
         )
         .subscribe();
     })();
 
-    return () => { try { channel && supabase.removeChannel(channel); } catch {} };
+    return () => {
+      cancelled = true;
+      try { channel && supabase.removeChannel(channel); } catch {}
+    };
   }, [roomCode]);
 
   const yourRank = useMemo(() => {
-    const idx = sorted.findIndex(r => r.user_id === youId);
-    return idx >= 0 ? (idx + 1) : null;
+    const idx = sorted.findIndex((r) => r.user_id === youId);
+    return idx >= 0 ? idx + 1 : null;
   }, [sorted, youId]);
 
   return { room, rows: sorted, totalPlayers, yourRank };
 }
 
+// ---------- global all-time ----------
 function useGlobalAllTime(quizId = "default", youId = null) {
   const [top, setTop] = useState([]);
   const [yours, setYours] = useState(null);
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    let channel;
+
+    const load = async () => {
       const q1 = await supabase
         .from("leaderboard_public_runs")
-        .select("user_id,name,score,duration_seconds,created_at")
+        .select(GLB_COLS)
         .eq("quiz_id", quizId)
         .order("score", { ascending: false })
         .order("duration_seconds", { ascending: true })
         .order("created_at", { ascending: true })
         .limit(50);
+
+      if (q1.error) console.error("[overlay] leaderboard top error:", q1.error);
       if (mounted && !q1.error) setTop(q1.data || []);
 
       if (youId) {
         const q2 = await supabase
           .from("leaderboard_public_runs")
-          .select("user_id,name,score,duration_seconds,created_at")
+          .select(GLB_COLS)
           .eq("quiz_id", quizId)
           .eq("user_id", youId)
           .order("score", { ascending: false })
@@ -155,26 +172,60 @@ function useGlobalAllTime(quizId = "default", youId = null) {
           .order("created_at", { ascending: true })
           .limit(1)
           .maybeSingle();
+
+        if (q2.error) console.error("[overlay] leaderboard yours error:", q2.error);
         if (mounted && !q2.error) setYours(q2.data || null);
       }
-    })();
-    return () => { mounted = false; };
+    };
+
+    const sortFn = (a, b) =>
+      (b.score - a.score) ||
+      ((a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9)) ||
+      (new Date(a.created_at) - new Date(b.created_at));
+
+    load();
+
+    // Live updates for global
+    channel = supabase
+      .channel(`global:${quizId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "leaderboard_public_runs", filter: `quiz_id=eq.${quizId}` },
+        (payload) => {
+          const n = payload.new;
+          setTop((prev) => [n, ...prev].sort(sortFn).slice(0, 50));
+          if (youId && n.user_id === youId) {
+            setYours((y) => {
+              if (!y) return n;
+              const better =
+                n.score > y.score ||
+                (n.score === y.score && (n.duration_seconds ?? 9e9) < (y.duration_seconds ?? 9e9));
+              return better ? n : y;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      try { channel && supabase.removeChannel(channel); } catch {}
+    };
   }, [quizId, youId]);
 
   return { top, yours };
 }
 
+// ---------- component ----------
 export default function ResultsOverlayV2({ onClose, roomCode, youId, seedRow }) {
-  const [tab, setTab] = useState("room"); // 'room' | 'global'
+  const [tab, setTab] = useState("room");
   const { rows, totalPlayers, yourRank } = useRoomData(roomCode, youId, seedRow);
   const { top, yours } = useGlobalAllTime("default", youId);
 
   const finished = rows.length;
   const total = Math.max(totalPlayers, finished || 1);
   const statusText =
-    finished < total
-      ? `${finished} LIVE OUT OF ${total}`
-      : `${ordinal(yourRank || 1)} OUT OF ${total}`;
+    finished < total ? `${finished} LIVE OUT OF ${total}` : `${ordinal(yourRank || 1)} OUT OF ${total}`;
 
   return (
     <div className={styles.modal} role="dialog" aria-modal="true">
@@ -205,10 +256,7 @@ export default function ResultsOverlayV2({ onClose, roomCode, youId, seedRow }) 
         <div className={styles.body}>
           {tab === "room" ? (
             <>
-              <div className="px-2 pb-2 text-slate-300 text-sm">
-                {statusText}
-              </div>
-
+              <div className="px-2 pb-2 text-slate-300 text-sm">{statusText}</div>
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>

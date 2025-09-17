@@ -33,7 +33,7 @@ export default function PlayRoom() {
     const [runsRes, partsRes] = await Promise.all([
       supabase
         .from('runs')
-        .select('user_id,name,score,max_streak,duration_seconds,created_at')
+        .select('user_id,name,score,max_streak,duration_seconds,finished_at')
         .eq('room_id', room.id),
       supabase
         .from('participants')
@@ -48,7 +48,7 @@ export default function PlayRoom() {
       (a, b) =>
         (b.score - a.score) ||
         ((a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9)) ||
-        (new Date(a.created_at) - new Date(b.created_at))
+        (new Date(a.finished_at ?? 0) - new Date(b.finished_at ?? 0))
     );
     setResults(runs);
     setTotalPlayers(parts.length || 0);
@@ -123,9 +123,17 @@ export default function PlayRoom() {
     const room = roomRef.current;
     if (!room) return;
 
-    // Upsert result
+    // Upsert result (write finished_at)
     const { error } = await supabase.from('runs').upsert(
-      { room_id: room.id, user_id: userId, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds },
+      {
+        room_id: room.id,
+        user_id: userId,
+        name: name || 'Player',
+        score,
+        max_streak: maxStreak,
+        duration_seconds: durationSeconds,
+        finished_at: new Date().toISOString(),
+      },
       { onConflict: 'room_id,user_id' }
     );
     if (error) {
@@ -143,7 +151,7 @@ export default function PlayRoom() {
       name: name || 'Player',
       score,
       duration_seconds: durationSeconds,
-      created_at: new Date().toISOString(),
+      finished_at: new Date().toISOString(),
     });
     setShowOverlay(true);
   }
@@ -156,10 +164,10 @@ export default function PlayRoom() {
         startedAtOverride={startedAt}
         onFinish={onFinish}
         playerName={name || 'Player'}
-        onOpenOverlayRequest={() => setShowOverlay(true)} 
+        onOpenOverlayRequest={() => setShowOverlay(true)}
       />
 
-      {/* New two-tab overlay */}
+      {/* Two-tab overlay */}
       {showOverlay && (
         <ResultsOverlayV2
           onClose={() => setShowOverlay(false)}
