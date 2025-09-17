@@ -126,6 +126,7 @@ export default function QuizPrototype({
   onFinish = null,
   // NEW: playerName passed from page (Landing/PlayRoom/Solo)
   playerName = null,
+  onOpenOverlayRequest = null,
 }) {
   // ——— Inject brand fonts + base CSS once ———
   useEffect(() => {
@@ -1180,17 +1181,29 @@ export default function QuizPrototype({
       [RESULT_ROWS]
     );
 
-    return (
-      <ResultsTableResponsive
-        rows={rows}
-        title="Αποτελέσματα"
-        playerName={p1.name}
-        totalScore={p1.score}
-        maxStreak={p1.maxStreak}
-        onReset={resetGame}
-        lang="el"
-      />
-    );
+      return (
+        <>
+          <ResultsTableResponsive
+            rows={rows}
+            title="Αποτελέσματα"
+            playerName={p1.name}
+            totalScore={p1.score}
+            maxStreak={p1.maxStreak}
+            onReset={resetGame}
+            lang="el"
+          />
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              className="btn btn-accent px-6 py-3"
+              onClick={() => onOpenOverlayRequest && onOpenOverlayRequest()}
+            >
+              Δες αποτελεσματα
+            </button>
+          </div>
+        </>
+      );
+
   }
 
   // ——— X2 Control (confirm-only) ———
