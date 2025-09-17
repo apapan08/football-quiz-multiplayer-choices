@@ -36,7 +36,7 @@ const styles = {
 
 // NOTE: runs table uses finished_at (not created_at)
 const RUNS_COLS = "user_id,name,score,max_streak,duration_seconds,finished_at";
-// Global table still has created_at
+// Global table has created_at
 const GLB_COLS  = "user_id,name,score,duration_seconds,created_at";
 
 // ---------- room data ----------
@@ -63,72 +63,47 @@ function useRoomData(roomCode, youId, seedRow) {
 
     (async () => {
       const { data: r, error: rErr } = await supabase
-        .from("rooms")
-        .select("*")
-        .eq("code", roomCode)
-        .single();
-
-      if (rErr || !r) {
-        console.error("[overlay] rooms select error:", rErr);
-        return;
-      }
+        .from("rooms").select("*").eq("code", roomCode).single();
+      if (rErr || !r) { console.error("[overlay] rooms select error:", rErr); return; }
       setRoom(r);
 
       const [runsRes, partsRes] = await Promise.all([
         supabase.from("runs").select(RUNS_COLS).eq("room_id", r.id),
         supabase.from("participants").select("user_id").eq("room_id", r.id),
       ]);
-
       if (runsRes.error) console.error("[overlay] runs select error:", runsRes.error);
       if (partsRes.error) console.error("[overlay] participants select error:", partsRes.error);
 
-      // Prefer DB snapshot over seed row once available
-      if (!cancelled && runsRes.data) setRuns(runsRes.data);
+      if (!cancelled && runsRes.data) setRuns(runsRes.data);                // prefer DB snapshot
       if (!cancelled && partsRes.data) setTotalPlayers(partsRes.data.length);
 
       const upsertRun = (n) => {
         setRuns((prev) => {
           const i = prev.findIndex((x) => x.user_id === n.user_id);
-          if (i >= 0) {
-            const cp = [...prev];
-            cp[i] = { ...cp[i], ...n };
-            return cp;
-          }
+          if (i >= 0) { const cp = [...prev]; cp[i] = { ...cp[i], ...n }; return cp; }
           return [...prev, n];
         });
       };
 
       channel = supabase
         .channel(`overlay:${r.id}`)
-        .on(
-          "postgres_changes",
+        .on("postgres_changes",
           { event: "INSERT", schema: "public", table: "runs", filter: `room_id=eq.${r.id}` },
-          (payload) => upsertRun(payload.new)
-        )
-        .on(
-          "postgres_changes",
+          (payload) => upsertRun(payload.new))
+        .on("postgres_changes",
           { event: "UPDATE", schema: "public", table: "runs", filter: `room_id=eq.${r.id}` },
-          (payload) => upsertRun(payload.new)
-        )
-        .on(
-          "postgres_changes",
+          (payload) => upsertRun(payload.new))
+        .on("postgres_changes",
           { event: "*", schema: "public", table: "participants", filter: `room_id=eq.${r.id}` },
           async () => {
-            const { data, error } = await supabase
-              .from("participants")
-              .select("user_id")
-              .eq("room_id", r.id);
+            const { data, error } = await supabase.from("participants").select("user_id").eq("room_id", r.id);
             if (error) console.error("[overlay] participants refresh error:", error);
             setTotalPlayers((data || []).length);
-          }
-        )
+          })
         .subscribe();
     })();
 
-    return () => {
-      cancelled = true;
-      try { channel && supabase.removeChannel(channel); } catch {}
-    };
+    return () => { cancelled = true; try { channel && supabase.removeChannel(channel); } catch {} };
   }, [roomCode]);
 
   const yourRank = useMemo(() => {
@@ -140,13 +115,18 @@ function useRoomData(roomCode, youId, seedRow) {
 }
 
 // ---------- global all-time ----------
-function useGlobalAllTime(quizId = "default", youId = null) {
+function useGlobalAllTime(quizId = "default", youId = null, refreshSignal = 0) {
   const [top, setTop] = useState([]);
   const [yours, setYours] = useState(null);
 
   useEffect(() => {
     let mounted = true;
     let channel;
+
+    const sortFn = (a, b) =>
+      (b.score - a.score) ||
+      ((a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9)) ||
+      (new Date(a.created_at) - new Date(b.created_at));
 
     const load = async () => {
       const q1 = await supabase
@@ -157,7 +137,6 @@ function useGlobalAllTime(quizId = "default", youId = null) {
         .order("duration_seconds", { ascending: true })
         .order("created_at", { ascending: true })
         .limit(50);
-
       if (q1.error) console.error("[overlay] leaderboard top error:", q1.error);
       if (mounted && !q1.error) setTop(q1.data || []);
 
@@ -172,24 +151,17 @@ function useGlobalAllTime(quizId = "default", youId = null) {
           .order("created_at", { ascending: true })
           .limit(1)
           .maybeSingle();
-
         if (q2.error) console.error("[overlay] leaderboard yours error:", q2.error);
         if (mounted && !q2.error) setYours(q2.data || null);
       }
     };
 
-    const sortFn = (a, b) =>
-      (b.score - a.score) ||
-      ((a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9)) ||
-      (new Date(a.created_at) - new Date(b.created_at));
+    load(); // initial (and on refreshSignal change)
 
-    load();
-
-    // Live updates for global
+    // Live updates (if Realtime is enabled on the table)
     channel = supabase
       .channel(`global:${quizId}`)
-      .on(
-        "postgres_changes",
+      .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "leaderboard_public_runs", filter: `quiz_id=eq.${quizId}` },
         (payload) => {
           const n = payload.new;
@@ -203,15 +175,12 @@ function useGlobalAllTime(quizId = "default", youId = null) {
               return better ? n : y;
             });
           }
-        }
-      )
+        })
       .subscribe();
 
-    return () => {
-      mounted = false;
-      try { channel && supabase.removeChannel(channel); } catch {}
-    };
-  }, [quizId, youId]);
+    return () => { mounted = false; try { channel && supabase.removeChannel(channel); } catch {} };
+  // refreshSignal forces a re-fetch whenever the room gets a new finisher
+  }, [quizId, youId, refreshSignal]);
 
   return { top, yours };
 }
@@ -220,9 +189,11 @@ function useGlobalAllTime(quizId = "default", youId = null) {
 export default function ResultsOverlayV2({ onClose, roomCode, youId, seedRow }) {
   const [tab, setTab] = useState("room");
   const { rows, totalPlayers, yourRank } = useRoomData(roomCode, youId, seedRow);
-  const { top, yours } = useGlobalAllTime("default", youId);
 
+  // When another player finishes (rows length grows), re-fetch global
   const finished = rows.length;
+  const { top, yours } = useGlobalAllTime("default", youId, finished);
+
   const total = Math.max(totalPlayers, finished || 1);
   const statusText =
     finished < total ? `${finished} LIVE OUT OF ${total}` : `${ordinal(yourRank || 1)} OUT OF ${total}`;
@@ -274,18 +245,14 @@ export default function ResultsOverlayV2({ onClose, roomCode, youId, seedRow }) 
                         <td className={styles.td}>
                           <span className="font-semibold">{r.name}</span>
                           {r.user_id === youId && (
-                            <span className="ml-2 text-[10px] font-extrabold bg-white text-black rounded px-1.5 py-0.5 align-middle">
-                              YOU
-                            </span>
+                            <span className="ml-2 text-[10px] font-extrabold bg-white text-black rounded px-1.5 py-0.5 align-middle">YOU</span>
                           )}
                         </td>
                         <td className={styles.td}>{fmtTime(r.duration_seconds)}</td>
                         <td className={styles.td}>{r.score}</td>
                       </tr>
                     ))}
-                    {rows.length === 0 && (
-                      <tr><td className={styles.td} colSpan={4}>Waiting for results…</td></tr>
-                    )}
+                    {rows.length === 0 && <tr><td className={styles.td} colSpan={4}>Waiting for results…</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -312,23 +279,19 @@ export default function ResultsOverlayV2({ onClose, roomCode, youId, seedRow }) 
                         <td className={styles.td}>
                           <span className="font-semibold">{r.name}</span>
                           {r.user_id === youId && (
-                            <span className="ml-2 text-[10px] font-extrabold bg-white text-black rounded px-1.5 py-0.5 align-middle">
-                              YOU
-                            </span>
+                            <span className="ml-2 text-[10px] font-extrabold bg-white text-black rounded px-1.5 py-0.5 align-middle">YOU</span>
                           )}
                         </td>
                         <td className={styles.td}>{fmtTime(r.duration_seconds)}</td>
                         <td className={styles.td}>{r.score}</td>
                       </tr>
                     ))}
-                    {top.length === 0 && (
-                      <tr><td className={styles.td} colSpan={4}>No submissions yet</td></tr>
-                    )}
+                    {top.length === 0 && <tr><td className={styles.td} colSpan={4}>No submissions yet</td></tr>}
                   </tbody>
                 </table>
               </div>
 
-              {yours && !top.some(t => t.user_id === youId) && (
+              {yours && !top.some((t) => t.user_id === youId) && (
                 <div className="mt-3 text-xs text-slate-300">
                   Your best all-time: <b>{yours.score}</b> in <b>{fmtTime(yours.duration_seconds)}</b> — outside Top 50
                 </div>
