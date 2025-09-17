@@ -13,12 +13,15 @@ export default function Lobby() {
   const [room, setRoom] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  // DB-backed roster (participants table) to make joins appear instantly
+  const [dbRoster, setDbRoster] = useState([]);
+
   const shareUrl =
     typeof window !== 'undefined'
       ? `${window.location.origin}/join/${(code || '').toUpperCase()}`
       : '';
 
-  // If visitor has no display name yet, send them to the Join page to set it
+  // Guard: if visitor has no display name yet, send them to the Join page
   useEffect(() => {
     if (ready && !((name || '').trim())) {
       nav(`/join/${code}`, { replace: true });
@@ -61,11 +64,53 @@ export default function Lobby() {
     })();
   }, [ready, code, userId, name, nav]);
 
+  // Seed and live-update roster from DB (participants) for snappy joins
+  useEffect(() => {
+    if (!room?.id) return;
+
+    let channel;
+
+    (async () => {
+      // initial snapshot
+      const { data } = await supabase
+        .from('participants')
+        .select('user_id,name,is_host')
+        .eq('room_id', room.id);
+      setDbRoster(data || []);
+
+      // realtime changes
+      channel = supabase
+        .channel(`participants:${room.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'participants', filter: `room_id=eq.${room.id}` },
+          ({ eventType, new: n, old: o }) => {
+            setDbRoster(prev => {
+              const by = new Map(prev.map(p => [p.user_id, p]));
+              if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                by.set(n.user_id, { user_id: n.user_id, name: n.name, is_host: n.is_host });
+              }
+              if (eventType === 'DELETE' && o?.user_id) {
+                by.delete(o.user_id);
+              }
+              return Array.from(by.values());
+            });
+          }
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      try { channel?.unsubscribe(); } catch {}
+    };
+  }, [room?.id]);
+
   const isHost = useMemo(
     () => room && userId === room.created_by,
     [room, userId]
   );
 
+  // Presence roster (with optimistic self inside the hook)
   const { roster, broadcastStart } = useRoomChannel({
     code,
     user_id: userId,
@@ -76,7 +121,17 @@ export default function Lobby() {
     },
   });
 
-  const canStart = isHost && roster.filter((r) => !!r.name).length >= 2;
+  // Merge DB roster (fast) with presence roster (authoritative online status)
+  const displayRoster = useMemo(() => {
+    const by = new Map();
+    // DB snapshot
+    dbRoster.forEach(p => by.set(p.user_id, { ...p }));
+    // presence metadata (finished flag etc.)
+    roster.forEach(p => by.set(p.user_id, { ...by.get(p.user_id), ...p }));
+    return Array.from(by.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [dbRoster, roster]);
+
+  const canStart = isHost && displayRoster.filter((r) => !!r.name).length >= 2;
 
   async function startGame() {
     if (!room) return;
@@ -126,7 +181,7 @@ export default function Lobby() {
           </div>
 
           <ul className="mt-4 divide-y divide-white/10">
-            {roster.map((p) => (
+            {displayRoster.map((p) => (
               <li key={p.user_id} className="py-2 flex items-center justify-between">
                 <div className="font-semibold">{p.name}</div>
                 <div className="text-xs text-slate-300">
@@ -134,8 +189,8 @@ export default function Lobby() {
                 </div>
               </li>
             ))}
-            {roster.length === 0 && (
-              <li className="py-3 text-slate-400">Κανείς δεν έχει μπει ακόμα…</li>
+            {displayRoster.length === 0 && (
+              <li className="py-3 text-slate-400">Συνδέεσαι…</li>
             )}
           </ul>
 

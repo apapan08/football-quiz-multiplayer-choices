@@ -1,5 +1,5 @@
 // src/pages/Join.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import supabase from '../lib/supabaseClient';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
@@ -7,15 +7,11 @@ import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 export default function Join() {
   const { code } = useParams();
   const nav = useNavigate();
-  const { ready, userId, name, setName } = useSupabaseAuth();
+  const { ready, userId, setName } = useSupabaseAuth();
 
-  const [tempName, setTempName] = useState(() => (name || '').trim());
+  // ✅ πάντα κενό στην αρχή — ο χρήστης γράφει νέο όνομα
+  const [tempName, setTempName] = useState('');
   const canJoin = (tempName || '').trim().length >= 2;
-
-  // Αν υπάρχει ήδη όνομα, δείξε το — αν όχι, άφησε τον χρήστη να το γράψει
-  useEffect(() => {
-    if ((name || '').trim() && !tempName) setTempName(name.trim());
-  }, [name, tempName]);
 
   async function handleJoin() {
     if (!ready) return;
@@ -23,9 +19,10 @@ export default function Join() {
     if (!displayName) { alert('Βάλε ένα όνομα εμφάνισης'); return; }
 
     try {
-      setName(displayName); // το αποθηκεύει στο localStorage μέσω hook
+      // Αποθήκευση για μελλοντικές φορές (localStorage μέσω hook)
+      setName(displayName);
 
-      // Βρες το δωμάτιο από το code
+      // Βρες το δωμάτιο
       const { data: room, error } = await supabase
         .from('rooms')
         .select('*')
@@ -34,14 +31,14 @@ export default function Join() {
 
       if (error || !room) { alert('Το δωμάτιο δεν βρέθηκε'); return; }
 
-      // Upsert participant για τον τωρινό χρήστη (RLS: user_id = auth.uid())
+      // Δήλωσε συμμετοχή
       const { error: upErr } = await supabase.from('participants').upsert(
         { room_id: room.id, user_id: userId, name: displayName, is_host: room.created_by === userId },
         { onConflict: 'room_id,user_id' }
       );
       if (upErr) { console.error(upErr); alert('Αποτυχία εισόδου στο δωμάτιο'); return; }
 
-      // Πήγαινε στο lobby του δωματίου
+      // Προχώρα στο lobby
       nav(`/room/${room.code}`);
     } catch (e) {
       console.error(e);
@@ -61,11 +58,15 @@ export default function Join() {
         <div className="mt-6 space-y-3">
           <label className="block text-sm text-slate-300">Όνομα εμφάνισης</label>
           <input
-            className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10"
+            className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
             placeholder="π.χ. Goat"
             value={tempName}
             onChange={(e)=>setTempName(e.target.value)}
             maxLength={24}
+            inputMode="text"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
             autoFocus
           />
         </div>

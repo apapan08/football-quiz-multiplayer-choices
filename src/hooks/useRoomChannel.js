@@ -38,7 +38,7 @@ export default function useRoomChannel({
         (a.name || "").localeCompare(b.name || "")
       );
       setRoster(arr);
-      console.log("[presence] sync", arr);
+      // console.log("[presence] sync", arr);
     };
 
     channel
@@ -46,18 +46,28 @@ export default function useRoomChannel({
       .on("presence", { event: "join" }, rebuild)
       .on("presence", { event: "leave" }, rebuild)
       .on("broadcast", { event: "start" }, ({ payload }) => {
-        console.log("[broadcast] start", payload);
+        // console.log("[broadcast] start", payload);
         onStartRef.current && onStartRef.current(payload);
       })
       .on("broadcast", { event: "finish" }, ({ payload }) => {
-        console.log("[broadcast] finish", payload);
+        // console.log("[broadcast] finish", payload);
         onFinishRef.current && onFinishRef.current(payload);
       });
 
+    // Optimistically show yourself immediately to avoid empty-state flicker
+    const me = { user_id, name, is_host: !!is_host, finished: false };
+    setRoster(prev => {
+      const by = new Map(prev.map(p => [p.user_id, p]));
+      by.set(user_id, me);
+      return Array.from(by.values()).sort((a, b) =>
+        (a.name || "").localeCompare(b.name || "")
+      );
+    });
+
     channel.subscribe((status) => {
-      console.log("[realtime] status", status, `room:${normCode}`);
+      // console.log("[realtime] status", status, `room:${normCode}`);
       if (status === "SUBSCRIBED") {
-        channel.track({ user_id, name, is_host: !!is_host, finished: false });
+        channel.track(me);
       }
     });
 
@@ -65,7 +75,7 @@ export default function useRoomChannel({
       try { channel.unsubscribe(); } catch {}
       chanRef.current = null;
     };
-    // ⬇️ DO NOT depend on onStart/onFinishBroadcast to keep subscription stable
+    // DO NOT depend on onStart/onFinishBroadcast to keep subscription stable
   }, [normCode, user_id, name, is_host]);
 
   async function broadcastStart(p) {
@@ -91,5 +101,6 @@ export default function useRoomChannel({
     } catch {}
   }
 
-  return { roster, broadcastStart, broadcastFinish };
+  // expose channel ref too (some pages read it)
+  return { roster, broadcastStart, broadcastFinish, channel: chanRef.current };
 }
