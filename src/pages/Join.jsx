@@ -9,7 +9,7 @@ export default function Join() {
   const nav = useNavigate();
   const { ready, userId, setName } = useSupabaseAuth();
 
-  // ✅ πάντα κενό στην αρχή — ο χρήστης γράφει νέο όνομα
+  // Πάντα κενό στην αρχή — ο χρήστης γράφει νέο όνομα
   const [tempName, setTempName] = useState('');
   const canJoin = (tempName || '').trim().length >= 2;
 
@@ -47,12 +47,16 @@ export default function Join() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6"
-         style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}>
+    <div
+      className="min-h-screen flex items-center justify-center p-6"
+      style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
+    >
       <div className="card w-full max-w-lg text-slate-100">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-extrabold">Μπες στο δωμάτιο</h1>
-          <div className="pill bg-white/10">Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span></div>
+          <div className="pill bg-white/10 whitespace-nowrap">
+            Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span>
+          </div>
         </div>
 
         <div className="mt-6 space-y-3">
@@ -61,7 +65,7 @@ export default function Join() {
             className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
             placeholder="π.χ. Goat"
             value={tempName}
-            onChange={(e)=>setTempName(e.target.value)}
+            onChange={(e) => setTempName(e.target.value)}
             maxLength={24}
             inputMode="text"
             autoComplete="off"
@@ -71,11 +75,15 @@ export default function Join() {
           />
         </div>
 
-        <div className="mt-6 flex justify-between">
-          <a className="btn btn-neutral" href="/">← Αρχική</a>
-          <button className="btn btn-accent py-3 disabled:opacity-50"
-                  onClick={handleJoin} disabled={!ready || !canJoin}>
-            Μπες στο δωμάτιο
+        {/* Responsive action row to avoid overflow */}
+        <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
+          <a className="btn btn-neutral w-full sm:w-auto" href="/">← Αρχική</a>
+          <button
+            className="btn btn-neutral w-full sm:w-auto whitespace-nowrap disabled:opacity-50"
+            onClick={handleJoin}
+            disabled={!ready || !canJoin}
+          >
+            Μπες
           </button>
         </div>
       </div>

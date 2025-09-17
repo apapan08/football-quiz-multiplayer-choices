@@ -13,61 +13,96 @@ export default function Landing() {
   async function createRoom() {
     if (!ready || !userId) return;
     if (!name.trim()) { alert('Βάλε ένα όνομα εμφάνισης'); return; }
-    const client = supabase;
+
     const roomCode = await generateUniqueRoomCode();
-    const { data: room, error: e1 } = await client
+    const { data: room, error: e1 } = await supabase
       .from('rooms')
       .insert({ code: roomCode, created_by: userId, status: 'lobby', settings: {} })
       .select('*')
       .single();
-    if (e1) { alert(e1.message); return; }
 
-    await client.from('participants')
+    if (e1 || !room) { alert(e1?.message || 'Αποτυχία δημιουργίας δωματίου'); return; }
+
+    await supabase
+      .from('participants')
       .upsert({ room_id: room.id, user_id: userId, name, is_host: true }, { onConflict: 'room_id,user_id' });
 
     nav(`/room/${room.code}`);
   }
 
-async function joinRoom() {
-  // do not write until auth session exists
-  if (!ready || !userId) return;
+  async function joinRoom() {
+    if (!ready || !userId) return;
 
-  const c = (code || '').trim().toUpperCase();
-  if (!c || c.length !== 5) { alert('Έγκυρος κωδικός 5 γραμμάτων'); return; }
-  if (!name.trim()) { alert('Βάλε ένα όνομα εμφάνισης'); return; }
+    const c = (code || '').trim().toUpperCase();
+    if (!c || c.length !== 5) { alert('Έγκυρος κωδικός 5 γραμμάτων'); return; }
+    if (!name.trim()) { alert('Βάλε ένα όνομα εμφάνισης'); return; }
 
-  const client = supabase;
-  const { data: room, error } = await client.from('rooms').select('*').eq('code', c).single();
-  if (error || !room) { alert('Το δωμάτιο δεν βρέθηκε'); return; }
+    const { data: room, error } = await supabase.from('rooms').select('*').eq('code', c).single();
+    if (error || !room) { alert('Το δωμάτιο δεν βρέθηκε'); return; }
 
-  // upsert only after session is ready
-  await client.from('participants').upsert(
-    { room_id: room.id, user_id: userId, name, is_host: false },
-    { onConflict: 'room_id,user_id' }
-  );
+    await supabase
+      .from('participants')
+      .upsert({ room_id: room.id, user_id: userId, name, is_host: false }, { onConflict: 'room_id,user_id' });
 
-  nav(`/room/${room.code}`);
-}
+    nav(`/room/${room.code}`);
+  }
 
+  const canCreate = ready && !!name.trim();
+  const canJoin = ready && !!name.trim() && (code || '').trim().length === 5;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6"
-         style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}>
-      <div className="card w-full max-w-lg text-slate-100">
-        <h1 className="font-display text-3xl font-extrabold text-center">Ποδοσφαιρικό Κουίζ</h1>
+    <div
+      className="min-h-screen flex items-center justify-center p-6"
+      style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
+    >
+      <div className="card w-full max-w-3xl text-slate-100">
+        <h1 className="font-display text-3xl md:text-4xl font-extrabold text-center">Ποδοσφαιρικό Κουίζ</h1>
+
         <div className="mt-6 space-y-3">
           <label className="block text-sm text-slate-300">Όνομα εμφάνισης</label>
-          <input className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10"
-                 value={name} onChange={(e)=>setName(e.target.value)} placeholder="π.χ. Goat" />
+          <input
+            className="w-full rounded-2xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="π.χ. Goat"
+            maxLength={24}
+            autoComplete="off"
+            spellCheck={false}
+          />
         </div>
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <button className="btn btn-accent py-3" onClick={createRoom} disabled={!ready}>Δημιούργησε Δωμάτιο</button>
-          <div className="flex gap-2">
-            <input className="flex-1 rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 uppercase"
-                   placeholder="Κωδικός (π.χ. ABCDE)" value={code} onChange={(e)=>setCode(e.target.value)} maxLength={5} />
-            <button className="btn btn-neutral px-4" onClick={joinRoom} disabled={!ready}>Μπες</button>
+        {/* Actions row: responsive + no overflow */}
+        <div className="mt-6 flex flex-col sm:flex-row items-stretch gap-3">
+          {/* Create room */}
+          <button
+            className="btn btn-accent w-full sm:w-auto"
+            onClick={createRoom}
+            disabled={!canCreate}
+          >
+            Δημιούργησε Δωμάτιο
+          </button>
+
+          {/* Code input grows in the middle */}
+          <div className="flex-1 min-w-0">
+            <input
+              className="w-full rounded-2xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400 uppercase"
+              placeholder="ΚΩΔΙΚΟΣ (π.χ. ABCDE)"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 5))}
+              maxLength={5}
+              autoComplete="off"
+              spellCheck={false}
+            />
           </div>
+
+          {/* Join button stays inside card */}
+          <button
+            className="btn btn-neutral w-full sm:w-auto shrink-0 whitespace-nowrap"
+            onClick={joinRoom}
+            disabled={!canJoin}
+          >
+            Μπες
+          </button>
         </div>
 
         <div className="mt-6 text-center text-sm text-slate-300">
