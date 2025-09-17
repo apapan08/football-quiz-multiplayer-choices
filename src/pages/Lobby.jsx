@@ -124,9 +124,7 @@ export default function Lobby() {
   // Merge DB roster (fast) with presence roster (authoritative online status)
   const displayRoster = useMemo(() => {
     const by = new Map();
-    // DB snapshot
     dbRoster.forEach(p => by.set(p.user_id, { ...p }));
-    // presence metadata (finished flag etc.)
     roster.forEach(p => by.set(p.user_id, { ...by.get(p.user_id), ...p }));
     return Array.from(by.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [dbRoster, roster]);
@@ -154,30 +152,34 @@ export default function Lobby() {
       className="min-h-screen p-6"
       style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
     >
-      <div className="max-w-2xl mx-auto text-slate-100">
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <h1 className="font-display text-2xl font-extrabold">Lobby</h1>
-            <div className="pill bg-white/10">
-              Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span>
-            </div>
+      <div className="card w-full max-w-2xl text-slate-100">
+        <div className="flex items-center justify-between">
+          <h1 className="font-display text-2xl font-extrabold">Lobby</h1>
+          <div className="pill bg-white/10">
+            Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span>
+          </div>
+        </div>
+
+        <div className="mt-4 text-sm text-slate-300 space-y-2">
+          <div>Στείλε αυτό το link στους φίλους σου:</div>
+
+          {/* Share row — responsive to avoid overflow on small screens */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              className="flex-1 min-w-0 rounded-2xl bg-slate-900/60 px-4 py-2.5 text-slate-200 outline-none ring-1 ring-white/10"
+              readOnly
+              value={shareUrl}
+            />
+            <button
+              className="btn btn-neutral w-full sm:w-auto shrink-0"
+              onClick={copyInvite}
+            >
+              {copied ? '✓ Αντιγράφηκε' : 'Αντιγραφή'}
+            </button>
           </div>
 
-          <div className="mt-4 text-sm text-slate-300 space-y-2">
-            <div>Στείλε αυτό το link στους φίλους σου:</div>
-            <div className="flex gap-2">
-              <input
-                className="flex-1 rounded-xl bg-slate-900/60 px-3 py-2 text-slate-200 outline-none ring-1 ring-white/10"
-                readOnly
-                value={shareUrl}
-              />
-              <button className="btn btn-neutral px-3" onClick={copyInvite}>
-                {copied ? '✓ Αντιγράφηκε' : 'Αντιγραφή'}
-              </button>
-            </div>
-            <div className="text-xs text-slate-400">
-              Εναλλακτικά, δώσε τον κωδικό: <span className="font-mono">{(code || '').toUpperCase()}</span>
-            </div>
+          <div className="text-xs text-slate-400">
+            Εναλλακτικά, δώσε τον κωδικό: <span className="font-mono">{(code || '').toUpperCase()}</span>
           </div>
           <div className="text-xs text-slate-400 mt-1">
             {isHost
@@ -186,36 +188,35 @@ export default function Lobby() {
                   : 'Όταν είστε έτοιμοι, πάτησε «Ξεκίνα το παιχνίδι».')
               : 'Περίμενε τον host να ξεκινήσει το παιχνίδι.'}
           </div>
+        </div>
 
+        <ul className="mt-4 divide-y divide-white/10">
+          {displayRoster.map((p) => (
+            <li key={p.user_id} className="py-2 flex items-center justify-between">
+              <div className="font-semibold">{p.name}</div>
+              <div className="text-xs text-slate-300">
+                {p.is_host ? 'Host' : 'Player'} {p.finished ? '• Ολοκλήρωσε' : ''}
+              </div>
+            </li>
+          ))}
+          {displayRoster.length === 0 && (
+            <li className="py-3 text-slate-400">Συνδέεσαι…</li>
+          )}
+        </ul>
 
-          <ul className="mt-4 divide-y divide-white/10">
-            {displayRoster.map((p) => (
-              <li key={p.user_id} className="py-2 flex items-center justify-between">
-                <div className="font-semibold">{p.name}</div>
-                <div className="text-xs text-slate-300">
-                  {p.is_host ? 'Host' : 'Player'} {p.finished ? '• Ολοκλήρωσε' : ''}
-                </div>
-              </li>
-            ))}
-            {displayRoster.length === 0 && (
-              <li className="py-3 text-slate-400">Συνδέεσαι…</li>
-            )}
-          </ul>
-
-          <div className="mt-6 flex items-center justify-between">
-            <button className="btn btn-neutral" onClick={() => nav('/')}>
-              ← Πίσω
+        <div className="mt-6 flex items-center justify-between">
+          <button className="btn btn-neutral" onClick={() => nav('/')}>
+            ← Πίσω
+          </button>
+          {isHost && (
+            <button
+              className="btn btn-accent disabled:opacity-50"
+              onClick={startGame}
+              disabled={!canStart}
+            >
+              Ξεκίνα το παιχνίδι
             </button>
-            {isHost && (
-              <button
-                className="btn btn-accent disabled:opacity-50"
-                onClick={startGame}
-                disabled={!canStart}
-              >
-                Ξεκίνα το παιχνίδι
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
