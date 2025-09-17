@@ -179,6 +179,14 @@ export default function Lobby() {
               Εναλλακτικά, δώσε τον κωδικό: <span className="font-mono">{(code || '').toUpperCase()}</span>
             </div>
           </div>
+          <div className="text-xs text-slate-400 mt-1">
+            {isHost
+              ? (displayRoster.length < 2
+                  ? 'Περίμενε να μπουν τουλάχιστον 2 παίκτες για να ξεκινήσεις.'
+                  : 'Όταν είστε έτοιμοι, πάτησε «Ξεκίνα το παιχνίδι».')
+              : 'Περίμενε τον host να ξεκινήσει το παιχνίδι.'}
+          </div>
+
 
           <ul className="mt-4 divide-y divide-white/10">
             {displayRoster.map((p) => (
