@@ -9,22 +9,62 @@ export default function Lobby() {
   const { code } = useParams();
   const nav = useNavigate();
   const { ready, userId, name } = useSupabaseAuth();
-  const [room, setRoom] = useState(null);
 
+  const [room, setRoom] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const shareUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/join/${(code || '').toUpperCase()}`
+      : '';
+
+  // If visitor has no display name yet, send them to the Join page to set it
   useEffect(() => {
-    if (!ready) return;
+    if (ready && !((name || '').trim())) {
+      nav(`/join/${code}`, { replace: true });
+    }
+  }, [ready, name, code, nav]);
+
+  // Fetch room + ensure we are in participants
+  useEffect(() => {
+    if (!ready || !userId) return;
+
     (async () => {
-      const { data, error } = await supabase.from('rooms').select('*').eq('code', code).single();
-      if (error || !data) { alert('Το δωμάτιο δεν βρέθηκε'); nav('/'); return; }
+      const { data, error } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('code', code)
+        .single();
+
+      if (error || !data) {
+        alert('Το δωμάτιο δεν βρέθηκε');
+        nav('/');
+        return;
+      }
+
       setRoom(data);
-      // Ensure we are in participants (deep link / refresh path)
-      await supabase.from('participants').upsert({
-        room_id: data.id, user_id: userId, name: name || 'Player', is_host: data.created_by === userId
-      }, { onConflict: 'room_id,user_id' });
+
+      // Upsert me as participant (RLS: user_id must equal auth.uid())
+      const up = await supabase.from('participants').upsert(
+        {
+          room_id: data.id,
+          user_id: userId,
+          name: (name || 'Player').trim(),
+          is_host: data.created_by === userId,
+        },
+        { onConflict: 'room_id,user_id' }
+      );
+
+      if (up.error) {
+        console.error('participants upsert failed:', up.error);
+      }
     })();
   }, [ready, code, userId, name, nav]);
 
-  const isHost = useMemo(() => room && userId === room.created_by, [room, userId]);
+  const isHost = useMemo(
+    () => room && userId === room.created_by,
+    [room, userId]
+  );
 
   const { roster, broadcastStart } = useRoomChannel({
     code,
@@ -33,34 +73,60 @@ export default function Lobby() {
     is_host: isHost,
     onStart: ({ startedAt }) => {
       nav(`/play/${code}?t=${startedAt}`);
-    }
+    },
   });
 
-  const canStart = isHost && roster.filter(r => !!r.name).length >= 2;
+  const canStart = isHost && roster.filter((r) => !!r.name).length >= 2;
 
   async function startGame() {
+    if (!room) return;
     const startedAt = Date.now();
-    // Flip status to 'playing' (host-only policy permits)
     await supabase.from('rooms').update({ status: 'playing' }).eq('id', room.id);
     await broadcastStart({ startedAt });
     nav(`/play/${code}?t=${startedAt}`);
   }
 
+  async function copyInvite() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }
+
   return (
-    <div className="min-h-screen p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}>
+    <div
+      className="min-h-screen p-6"
+      style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
+    >
       <div className="max-w-2xl mx-auto text-slate-100">
         <div className="card">
           <div className="flex items-center justify-between">
             <h1 className="font-display text-2xl font-extrabold">Lobby</h1>
-            <div className="pill bg-white/10">Κωδικός: <span className="font-mono">{code}</span></div>
+            <div className="pill bg-white/10">
+              Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span>
+            </div>
           </div>
 
-          <div className="mt-4 text-sm text-slate-300">
-            Στείλε τον σύνδεσμο <span className="font-mono">/room/{code}</span> ή τον κωδικό στους φίλους σου.
+          <div className="mt-4 text-sm text-slate-300 space-y-2">
+            <div>Στείλε αυτό το link στους φίλους σου:</div>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 rounded-xl bg-slate-900/60 px-3 py-2 text-slate-200 outline-none ring-1 ring-white/10"
+                readOnly
+                value={shareUrl}
+              />
+              <button className="btn btn-neutral px-3" onClick={copyInvite}>
+                {copied ? '✓ Αντιγράφηκε' : 'Αντιγραφή'}
+              </button>
+            </div>
+            <div className="text-xs text-slate-400">
+              Εναλλακτικά, δώσε τον κωδικό: <span className="font-mono">{(code || '').toUpperCase()}</span>
+            </div>
           </div>
 
           <ul className="mt-4 divide-y divide-white/10">
-            {roster.map(p => (
+            {roster.map((p) => (
               <li key={p.user_id} className="py-2 flex items-center justify-between">
                 <div className="font-semibold">{p.name}</div>
                 <div className="text-xs text-slate-300">
@@ -68,13 +134,21 @@ export default function Lobby() {
                 </div>
               </li>
             ))}
-            {roster.length === 0 && <li className="py-3 text-slate-400">Κανείς δεν έχει μπει ακόμα…</li>}
+            {roster.length === 0 && (
+              <li className="py-3 text-slate-400">Κανείς δεν έχει μπει ακόμα…</li>
+            )}
           </ul>
 
           <div className="mt-6 flex items-center justify-between">
-            <button className="btn btn-neutral" onClick={() => nav('/')}>← Πίσω</button>
+            <button className="btn btn-neutral" onClick={() => nav('/')}>
+              ← Πίσω
+            </button>
             {isHost && (
-              <button className="btn btn-accent disabled:opacity-50" onClick={startGame} disabled={!canStart}>
+              <button
+                className="btn btn-accent disabled:opacity-50"
+                onClick={startGame}
+                disabled={!canStart}
+              >
                 Ξεκίνα το παιχνίδι
               </button>
             )}
