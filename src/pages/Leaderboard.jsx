@@ -89,7 +89,7 @@ export default function Leaderboard() {
 
           <div className="mt-6 flex justify-between">
             <button className="btn btn-neutral" onClick={()=>nav(`/room/${code}`)}>← Lobby</button>
-            <a className="btn btn-accent" href="/solo">Παίξε σόλο</a>
+            <a className="btn btn-accent" href="/solo">Παίξε μόνος</a>
           </div>
         </div>
       </div>
