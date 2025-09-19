@@ -24,6 +24,10 @@ export default function PlayRoom() {
   // Overlay
   const [showOverlay, setShowOverlay] = useState(false);
   const [mySeedRow, setMySeedRow] = useState(null);
+  // Store personal per-question result rows for the current match.
+  const [myResultRows, setMyResultRows] = useState([]);
+  // Remember which overlay tab was last active (room, global or my).
+  const [overlayView, setOverlayView] = useState(null);
   const [results, setResults] = useState([]); // kept (not strictly needed by V2 anymore)
   const [totalPlayers, setTotalPlayers] = useState(0);
 
@@ -115,7 +119,7 @@ export default function PlayRoom() {
 
   const hasFinishedRef = useRef(false);
 
-  async function onFinish({ score, maxStreak, durationSeconds }) {
+  async function onFinish({ score, maxStreak, durationSeconds, resultRows }) {
     if (hasFinishedRef.current) return;
     if (!ready || !userId) return;
 
@@ -144,16 +148,26 @@ export default function PlayRoom() {
     }
 
     // Broadcast finish & open overlay
-    await broadcastFinish({ user_id: userId, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds });
+    await broadcastFinish({
+      user_id: userId,
+      name: name || 'Player',
+      score,
+      max_streak: maxStreak,
+      duration_seconds: durationSeconds
+    });
     await refreshResults();
     setMySeedRow({
       user_id: userId,
       name: name || 'Player',
       score,
+      max_streak: maxStreak,           // ← added max_streak
       duration_seconds: durationSeconds,
       finished_at: new Date().toISOString(),
     });
-    setShowOverlay(true);
+    // Persist the detailed per-question results so the overlay can display the personal breakdown.
+    if (Array.isArray(resultRows)) setMyResultRows(resultRows);
+      setOverlayView("room");   // open overlay on Room by default
+      setShowOverlay(true);
   }
 
   return (
@@ -167,13 +181,19 @@ export default function PlayRoom() {
         onOpenOverlayRequest={() => setShowOverlay(true)}
       />
 
-      {/* Two-tab overlay */}
+      {/* Three-view overlay (Room / Global / My Results) */}
       {showOverlay && (
         <ResultsOverlayV2
           onClose={() => setShowOverlay(false)}
           roomCode={code}
           youId={userId}
           seedRow={mySeedRow}
+          view={overlayView}
+          onViewChange={(v) => setOverlayView(v)}
+          myResultRows={myResultRows}
+          myScore={mySeedRow?.score}
+          myMaxStreak={mySeedRow?.max_streak}
+          playerName={name || 'Player'}
         />
       )}
     </>

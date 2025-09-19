@@ -562,17 +562,32 @@ export default function QuizPrototype({
       finishFiredRef.current = true;
       const durSec = startedAt ? Math.max(0, Math.round((Date.now() - startedAt) / 1000)) : 0;
       try {
+        // Convert RESULT_ROWS to the shape expected by the overlay.
+        const resultRows = RESULT_ROWS.map((r) => ({
+          i: r.idx,
+          category: r.category,
+          points: r.base,
+          isFinal: r.isFinal,
+          correct: r.outcome === "Σωστό" ? true : r.outcome === "Λάθος" ? false : null,
+          x2: r.x2Applied,
+          answerText: r.userAnswer,
+          answerSide: null,
+          delta: r.delta,
+          total: r.running,
+          streakPoints: r.bonus,
+        }));
         onFinish({
           score: p1.score,
           maxStreak: p1.maxStreak,
           durationSeconds: durSec,
           roomCode,
+          resultRows,
         });
-      } catch (e) {
-        // swallow to avoid UI break
+      } catch {
+        /* silently ignore */
       }
     }
-  }, [stage, onFinish, p1.score, p1.maxStreak, startedAt, roomCode]);
+  }, [stage, onFinish, p1.score, p1.maxStreak, startedAt, roomCode, RESULT_ROWS]);
 
   // ——— UI subcomponents ———
   function HUDHeader({ stage, current, total, score, streak, justScored, justLostStreak }) {
@@ -1213,7 +1228,7 @@ function CategoryStage() {
               className="btn btn-accent px-6 py-3"
               onClick={() => onOpenOverlayRequest && onOpenOverlayRequest()}
             >
-              Δες αποτελεσματα
+              Δες Κατάταξη
             </button>
           </div>
         </>
@@ -1387,15 +1402,21 @@ function X2Control({
     const isFinalAnswerStage = stage === STAGES.ANSWER && isFinalIndex;
 
     if (isFinalAnswerStage) {
+      // On the final answer screen, direct the player to the standings.
       return (
         <div className="flex items-center justify-center">
           <button
-            onClick={() => setStage(STAGES.RESULTS)}
+            onClick={() => {
+              // Progress to the results stage…
+              setStage(STAGES.RESULTS);
+              // …and, if supplied, open the leaderboard overlay immediately.
+              if (onOpenOverlayRequest) onOpenOverlayRequest();
+            }}
             className="btn btn-accent disabled:opacity-50"
             disabled={nextDisabled}
-            title={nextDisabled ? "Καταχώρισε πρώτα την απάντηση" : "Προβολή αποτελεσμάτων"}
+            title={nextDisabled ? "Καταχώρισε πρώτα την απάντηση" : "Προβολή κατάταξης"}
           >
-            Δες πώς τα πήγες →
+            Δες κατάταξη →
           </button>
         </div>
       );
