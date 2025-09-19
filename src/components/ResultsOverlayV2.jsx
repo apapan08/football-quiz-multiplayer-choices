@@ -17,8 +17,7 @@ function fmtTime(sec) {
 }
 
 // NOTE: runs table uses finished_at (not created_at)
-const RUNS_COLS =
-  "user_id,name,score,max_streak,duration_seconds,finished_at";
+const RUNS_COLS = "user_id,name,score,max_streak,duration_seconds,finished_at";
 // Global table has created_at (we fetch it for stable sorting/keys; not shown in UI)
 const GLB_COLS = "user_id,name,score,duration_seconds,created_at";
 
@@ -32,9 +31,9 @@ function useRoomData(roomCode, youId, seedRow) {
     const arr = [...runs];
     arr.sort(
       (a, b) =>
-        (b.score - a.score) ||
-        ((a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9)) ||
-        (new Date(a.finished_at ?? 0) - new Date(b.finished_at ?? 0))
+        b.score - a.score ||
+        (a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9) ||
+        new Date(a.finished_at ?? 0) - new Date(b.finished_at ?? 0)
     );
     return arr;
   }, [runs]);
@@ -46,8 +45,14 @@ function useRoomData(roomCode, youId, seedRow) {
 
     (async () => {
       const { data: r, error: rErr } = await supabase
-        .from("rooms").select("*").eq("code", roomCode).single();
-      if (rErr || !r) { console.error("[overlay] rooms select error:", rErr); return; }
+        .from("rooms")
+        .select("*")
+        .eq("code", roomCode)
+        .single();
+      if (rErr || !r) {
+        console.error("[overlay] rooms select error:", rErr);
+        return;
+      }
       setRoom(r);
 
       const [runsRes, partsRes] = await Promise.all([
@@ -55,7 +60,8 @@ function useRoomData(roomCode, youId, seedRow) {
         supabase.from("participants").select("user_id").eq("room_id", r.id),
       ]);
       if (runsRes.error) console.error("[overlay] runs select error:", runsRes.error);
-      if (partsRes.error) console.error("[overlay] participants select error:", partsRes.error);
+      if (partsRes.error)
+        console.error("[overlay] participants select error:", partsRes.error);
 
       if (!cancelled && runsRes.data) setRuns(runsRes.data); // DB snapshot
       if (!cancelled && partsRes.data) setTotalPlayers(partsRes.data.length);
@@ -63,30 +69,48 @@ function useRoomData(roomCode, youId, seedRow) {
       const upsertRun = (n) => {
         setRuns((prev) => {
           const i = prev.findIndex((x) => x.user_id === n.user_id);
-          if (i >= 0) { const cp = [...prev]; cp[i] = { ...cp[i], ...n }; return cp; }
+          if (i >= 0) {
+            const cp = [...prev];
+            cp[i] = { ...cp[i], ...n };
+            return cp;
+          }
           return [...prev, n];
         });
       };
 
       channel = supabase
         .channel(`overlay:${r.id}`)
-        .on("postgres_changes",
+        .on(
+          "postgres_changes",
           { event: "INSERT", schema: "public", table: "runs", filter: `room_id=eq.${r.id}` },
-          (payload) => upsertRun(payload.new))
-        .on("postgres_changes",
+          (payload) => upsertRun(payload.new)
+        )
+        .on(
+          "postgres_changes",
           { event: "UPDATE", schema: "public", table: "runs", filter: `room_id=eq.${r.id}` },
-          (payload) => upsertRun(payload.new))
-        .on("postgres_changes",
+          (payload) => upsertRun(payload.new)
+        )
+        .on(
+          "postgres_changes",
           { event: "*", schema: "public", table: "participants", filter: `room_id=eq.${r.id}` },
           async () => {
-            const { data, error } = await supabase.from("participants").select("user_id").eq("room_id", r.id);
+            const { data, error } = await supabase
+              .from("participants")
+              .select("user_id")
+              .eq("room_id", r.id);
             if (error) console.error("[overlay] participants refresh error:", error);
             setTotalPlayers((data || []).length);
-          })
+          }
+        )
         .subscribe();
     })();
 
-    return () => { cancelled = true; try { channel && supabase.removeChannel(channel); } catch {} };
+    return () => {
+      cancelled = true;
+      try {
+        channel && supabase.removeChannel(channel);
+      } catch {}
+    };
   }, [roomCode]);
 
   const yourRank = useMemo(() => {
@@ -97,7 +121,7 @@ function useRoomData(roomCode, youId, seedRow) {
   return { room, rows: sorted, totalPlayers, yourRank };
 }
 
-// ---------- global all-time ----------
+// ---------- global (scoped by QUIZ_ID) ----------
 function useGlobalAllTime(quizId = "default", youId = null, refreshSignal = 0) {
   const [top, setTop] = useState([]);
   const [yours, setYours] = useState(null);
@@ -107,9 +131,9 @@ function useGlobalAllTime(quizId = "default", youId = null, refreshSignal = 0) {
     let channel;
 
     const sortFn = (a, b) =>
-      (b.score - a.score) ||
-      ((a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9)) ||
-      (new Date(a.created_at) - new Date(b.created_at));
+      b.score - a.score ||
+      (a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9) ||
+      new Date(a.created_at) - new Date(b.created_at);
 
     const load = async () => {
       const q1 = await supabase
@@ -144,17 +168,14 @@ function useGlobalAllTime(quizId = "default", youId = null, refreshSignal = 0) {
     // Realtime inserts
     channel = supabase
       .channel(`global:${quizId}`)
-      .on("postgres_changes",
+      .on(
+        "postgres_changes",
         { event: "INSERT", schema: "public", table: "leaderboard_public_runs", filter: `quiz_id=eq.${quizId}` },
         (payload) => {
           const n = payload.new;
           setTop((prev) => {
             const next = [n, ...prev];
-            next.sort((a, b) =>
-              (b.score - a.score) ||
-              ((a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9)) ||
-              (new Date(a.created_at) - new Date(b.created_at))
-            );
+            next.sort(sortFn);
             return next.slice(0, 50);
           });
           if (youId && n.user_id === youId) {
@@ -166,46 +187,56 @@ function useGlobalAllTime(quizId = "default", youId = null, refreshSignal = 0) {
               return better ? n : y;
             });
           }
-        })
+        }
+      )
       .subscribe();
 
-    return () => { try { channel && supabase.removeChannel(channel); } catch {} };
+  return () => {
+      try {
+        channel && supabase.removeChannel(channel);
+      } catch {}
+    };
   }, [quizId, youId, refreshSignal]);
 
   return { top, yours };
 }
 
-// ---------- component (Room <-> Global only) ----------
+// ---------- component (Room <-> Global; Global-only when solo) ----------
 export default function ResultsOverlayV2({
   onClose,
   roomCode,
   youId,
   seedRow,
   view,          // optional initial view from parent
-  onViewChange,  // optional callback
+  onViewChange,
+  refreshSignal = 0,  
 }) {
+  const soloMode = !roomCode;
   const { room, rows, totalPlayers, yourRank } = useRoomData(roomCode, youId, seedRow);
   const finished = rows.length;
-  const { top /*, yours*/ } = useGlobalAllTime(QUIZ_ID, youId, finished); // ← scoped to QUIZ_ID
+  const reloadKey = (finished || 0) + (refreshSignal || 0); // ← NEW
+  const { top /*, yours*/ } = useGlobalAllTime(QUIZ_ID, youId, reloadKey);
   const total = Math.max(totalPlayers, finished || 1);
 
-  // Always default to ROOM now
-  const [internalView, setInternalView] = useState("room");
-  useEffect(() => { if (view) setInternalView(view); }, [view]);
+  // Default to Global when SOLO, else Room
+  const [internalView, setInternalView] = useState(soloMode ? "global" : "room");
+  useEffect(() => {
+    if (view) setInternalView(view);
+  }, [view]);
 
   function setView(next) {
     if (onViewChange) onViewChange(next);
     setInternalView(next);
   }
 
-  // Live status or placement chip.
+  // Live status or placement chip (room)
   let statusText;
   if (finished < total) {
     statusText = `${finished} LIVE OUT OF ${total}`;
   } else {
     const rank = yourRank || 1;
-    const ord = ordinal(rank);           // e.g., 1ST, 2ND...
-    statusText = `${ord} / ${total}`; 
+    const ord = ordinal(rank); // e.g., 1ST, 2ND...
+    statusText = `${ord} / ${total}`;
   }
 
   return (
@@ -216,21 +247,15 @@ export default function ResultsOverlayV2({
         <div className="px-6 py-4 border-b border-white/10 flex flex-col gap-1">
           <div className="flex items-center justify-between">
             <div className="font-display text-2xl font-extrabold text-white">
-              {internalView === "room" ? "Room Leaderboard" : "Global Leaderboard"}
+              {internalView === "room" ? "Κατάταξη Δωματίου" : "Παγκόσμια Κατάταξη"}
             </div>
-            <button
-              onClick={onClose}
-              className="btn btn-accent px-3 py-1.5 rounded-xl"
-              aria-label="Close"
-            >
+            <button onClick={onClose} className="btn btn-accent px-3 py-1.5 rounded-xl" aria-label="Close">
               ×
             </button>
           </div>
 
           <div className="text-sm text-slate-300" aria-live="polite">
-            {internalView === "room"
-              ? statusText
-              : <>Showing Top 50</>}
+            {internalView === "room" ? statusText : <>Πρώτοι 50</>}
           </div>
         </div>
 
@@ -242,9 +267,9 @@ export default function ResultsOverlayV2({
                 <thead>
                   <tr>
                     <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">#</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Name</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Time</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Score</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Όνομα</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Χρόνος</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Σκορ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -265,7 +290,9 @@ export default function ResultsOverlayV2({
                   ))}
                   {rows.length === 0 && (
                     <tr>
-                      <td className="px-4 py-2 border-t border-white/10" colSpan={4}>Waiting for results…</td>
+                      <td className="px-4 py-2 border-t border-white/10" colSpan={4}>
+                        Περιμένουμε αποτελέσματα…
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -279,9 +306,9 @@ export default function ResultsOverlayV2({
                 <thead>
                   <tr>
                     <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">#</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Name</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Time</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Score</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Όνομα</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Χρόνος</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Σκορ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -302,7 +329,9 @@ export default function ResultsOverlayV2({
                   ))}
                   {top.length === 0 && (
                     <tr>
-                      <td className="px-4 py-2 border-t border-white/10" colSpan={4}>No submissions yet</td>
+                      <td className="px-4 py-2 border-t border-white/10" colSpan={4}>
+                        Δεν υπάρχουν συμμετοχές ακόμη
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -311,18 +340,20 @@ export default function ResultsOverlayV2({
           )}
         </div>
 
-        {/* footer: only switcher */}
-        <div className="px-6 py-4 border-t border-white/10 flex flex-col gap-2">
-          {internalView === "room" ? (
-            <button className="btn btn-accent w-full" onClick={() => setView("global")}>
-              Παγκόσμια Κατάταξη
-            </button>
-          ) : (
-            <button className="btn btn-accent w-full" onClick={() => setView("room")}>
-              Κατάταξη Δωματίου
-            </button>
-          )}
-        </div>
+        {/* footer: show switcher only if we have a room (multiplayer) */}
+        {!soloMode && (
+          <div className="px-6 py-4 border-t border-white/10 flex flex-col gap-2">
+            {internalView === "room" ? (
+              <button className="btn btn-accent w-full" onClick={() => setView("global")}>
+                Παγκόσμια Κατάταξη
+              </button>
+            ) : (
+              <button className="btn btn-accent w-full" onClick={() => setView("room")}>
+                Κατάταξη Δωματίου
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

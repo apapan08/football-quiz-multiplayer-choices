@@ -130,6 +130,8 @@ export default function QuizPrototype({
   // NEW: playerName passed from page (Landing/PlayRoom/Solo)
   playerName = null,
   onOpenOverlayRequest = null,
+  onNameSaved = null,
+  startStage = "intro", // ← NEW: "intro" | "name"
 }) {
   // ——— Inject brand fonts + base CSS once ———
   useEffect(() => {
@@ -212,7 +214,7 @@ export default function QuizPrototype({
   // INITIAL STAGE: if we have a name from the page, start at INTRO; else ask for it
   const [stage, setStage] = usePersistentState(
     `${STORAGE_KEY}:stage`,
-    (playerName && playerName.trim()) ? STAGES.INTRO : STAGES.NAME
+    startStage === "name" ? STAGES.NAME : STAGES.INTRO
   );
 
   const conn = typeof navigator !== "undefined" ? navigator.connection : null;
@@ -263,13 +265,36 @@ export default function QuizPrototype({
       setP1((s) => ({ ...s, name: playerName.trim().slice(0, 18) }));
     }
   }, [playerName]); // eslint-disable-line react-hooks/exhaustive-deps
+  const NAME_KEY = 'display_name_v1';
+
+
+
+
+  const persistDisplayName = React.useCallback((raw) => {
+    const v = (raw ?? '').toString().trim().slice(0, 24);
+    try { localStorage.setItem(NAME_KEY, v); } catch {}
+    if (onNameSaved) onNameSaved(v);
+  }, [onNameSaved]);
+
+  const didPersistNameRef = React.useRef(false);
 
   // If we somehow land on NAME with a known name, auto-skip to INTRO
-  useEffect(() => {
-    if (stage === STAGES.NAME && (p1.name?.trim() || playerName?.trim())) {
-      setStage(STAGES.INTRO);
-    }
-  }, [stage, p1.name, playerName, setStage]);
+useEffect(() => {
+  if (stage !== STAGES.NAME) return;
+
+  // Prefer what the user typed on the Name stage; fall back to prop
+  const typed = (p1?.name ?? '').trim();
+  const passed = (playerName ?? '').trim();
+  const effective = typed || passed;
+  if (!effective) return;
+
+  if (!didPersistNameRef.current) {
+    persistDisplayName(effective);     // save to localStorage + notify parent
+    didPersistNameRef.current = true;  // guard against double runs
+  }
+  setStage(STAGES.INTRO);              // advance after persisting the name
+}, [stage, p1?.name, playerName, persistDisplayName, setStage]);
+
 
   const [lastCorrect, setLastCorrect] = usePersistentState(
     `${STORAGE_KEY}:lastCorrect`,
@@ -696,16 +721,21 @@ export default function QuizPrototype({
           </div>
 
           <div className="mt-5 flex justify-center">
-            <button
-              className="btn btn-accent px-6 py-3 text-base disabled:opacity-50"
-              onClick={() => {
-                setP1((s) => ({ ...s, name: tempName.trim() }));
-                setStage(STAGES.INTRO);
-              }}
-              disabled={!canProceed}
-            >
-              Προχώρα
-            </button>
+                <button
+                  className="btn btn-accent px-6 py-3 text-base disabled:opacity-50"
+                  onClick={() => {
+                    const v = tempName.trim();
+                    setP1((s) => ({ ...s, name: v }));
+                    // persist to localStorage + notify parent BEFORE leaving NAME stage
+                    persistDisplayName(v);
+                    didPersistNameRef.current = true; // avoid double-persist from the effect
+                    setStage(STAGES.INTRO);
+                  }}
+                  disabled={!canProceed}
+                >
+                  Προχώρα
+                </button>
+
           </div>
         </div>
       </StageCard>
