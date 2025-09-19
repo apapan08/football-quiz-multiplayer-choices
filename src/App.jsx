@@ -756,14 +756,13 @@ export default function QuizPrototype({
   }
 
 function CategoryStage() {
-  const pointsLabel = isFinalIndex ? "0×–3× Πόντοι" : `×${q.points || 1} Πόντοι`;
+  const points = q.points || 1;
 
   return (
     <StageCard>
-      {/* Header: logo only (remove duplicate category chip on the right) */}
+      {/* Header: logo only to avoid duplicate category chips */}
       <div className="flex items-center justify-between">
         <Logo />
-        {/* removed the right-side category chip to avoid duplication */}
         <div />
       </div>
 
@@ -772,20 +771,21 @@ function CategoryStage() {
         {q.category}
       </h2>
 
-      {/* Compact chips row: single source of truth for points + small X2 chip */}
-      <div className="mt-3 flex items-center justify-center gap-2">
+      {/* Compact chips row: points (no-wrap) + small X2 chip */}
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
         <span
-          className="pill text-white"
+          className="pill pill-nowrap"
+          aria-label={`${points} πόντοι`}
           style={{
             background: THEME.badgeGradient,
             padding: ".45rem .9rem",
-            fontWeight: 800
+            fontWeight: 800,
           }}
         >
-          {pointsLabel}
+          ×{points}
         </span>
 
-        {/* X2 chip (hidden on Final) */}
+        {/* X2 chip (hidden on final) */}
         {!isFinalIndex && (
           <X2Control
             side="p1"
@@ -794,7 +794,7 @@ function CategoryStage() {
             onArm={() => armX2("p1")}
             isFinal={isFinalIndex}
             stage={stage}
-            variant="chip"  // ← new compact presentation
+            variant="chip" // compact chip presentation
           />
         )}
       </div>
@@ -802,7 +802,7 @@ function CategoryStage() {
       {/* Tiny helper caption (optional) */}
       {!isFinalIndex && (
         <div className="mt-1 text-center text-xs text-slate-400 font-ui">
-          Χ2: μία φορά ανά παιχνίδι
+          X2: μία φορά ανά παιχνίδι
         </div>
       )}
 
@@ -828,6 +828,7 @@ function CategoryStage() {
     </StageCard>
   );
 }
+
 
 
   function QuestionStage() {
