@@ -755,66 +755,80 @@ export default function QuizPrototype({
     );
   }
 
-  function CategoryStage() {
-    return (
-      <StageCard>
-        {/* Header row: logo (left) + category chip (right) */}
-        <div className="flex items-center justify-between">
-          <Logo />
-          <div className="flex items-center gap-2">
-            <div className="pill text-white bg-slate-700/70">
-              {isFinalIndex ? "Τελικός 0×–3×" : `Κατηγορία ×${q.points || 1}`}
-            </div>
-          </div>
-        </div>
+function CategoryStage() {
+  const pointsLabel = isFinalIndex ? "0×–3× Πόντοι" : `×${q.points || 1} Πόντοι`;
 
-        <h2 className="mt-4 text-center text-3xl font-extrabold tracking-wide font-display">
-          {q.category}
-        </h2>
-        <p className="mt-2 text-center font-ui" style={{ color: THEME.accent }}>
-          {isFinalIndex ? "0×–3× Πόντοι" : `x${q.points || 1} Πόντοι`}
-        </p>
+  return (
+    <StageCard>
+      {/* Header: logo only (remove duplicate category chip on the right) */}
+      <div className="flex items-center justify-between">
+        <Logo />
+        {/* removed the right-side category chip to avoid duplication */}
+        <div />
+      </div>
 
-        {/* X2 (single button) — HIDDEN on Final */}
+      {/* Title */}
+      <h2 className="mt-4 text-center text-3xl font-extrabold tracking-wide font-display">
+        {q.category}
+      </h2>
+
+      {/* Compact chips row: single source of truth for points + small X2 chip */}
+      <div className="mt-3 flex items-center justify-center gap-2">
+        <span
+          className="pill text-white"
+          style={{
+            background: THEME.badgeGradient,
+            padding: ".45rem .9rem",
+            fontWeight: 800
+          }}
+        >
+          {pointsLabel}
+        </span>
+
+        {/* X2 chip (hidden on Final) */}
         {!isFinalIndex && (
-          <div className="mt-5 rounded-2xl bg-slate-900/50 p-4">
-            <div className="mb-2 text-center text-sm text-slate-300 font-ui">Βοήθεια Χ2</div>
-            <div className="max-w-2xl mx-auto flex justify-center">
-              <X2Control
-                label={p1.name}
-                side="p1"
-                armed={isX2ActiveFor("p1")}
-                available={x2.p1.available}
-                onArm={() => armX2("p1")}
-                isFinal={isFinalIndex}
-                stage={stage}
-              />
-            </div>
-          </div>
+          <X2Control
+            side="p1"
+            armed={isX2ActiveFor("p1")}
+            available={x2.p1.available}
+            onArm={() => armX2("p1")}
+            isFinal={isFinalIndex}
+            stage={stage}
+            variant="chip"  // ← new compact presentation
+          />
         )}
+      </div>
 
-        {/* Final betting UI on last question */}
-        {isFinalIndex && (
-          <div className="mt-5 rounded-2xl bg-slate-900/50 p-4">
-            <div className="mb-2 text-center text-sm text-slate-300 font-ui">
-              Τελικός — Τοποθέτησε το ποντάρισμά σου (0–3) και πάτησε Επόμενο.
-            </div>
-            <div className="max-w-2xl mx-auto flex justify-center">
-              <WagerControl
-                label={p1.name}
-                value={wager.p1}
-                onChange={(n) => setWager({ p1: clamp(n, 0, 3) })}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="mt-6 flex justify-center gap-3">
-          <NavButtons />
+      {/* Tiny helper caption (optional) */}
+      {!isFinalIndex && (
+        <div className="mt-1 text-center text-xs text-slate-400 font-ui">
+          Χ2: μία φορά ανά παιχνίδι
         </div>
-      </StageCard>
-    );
-  }
+      )}
+
+      {/* Final betting UI on last question */}
+      {isFinalIndex && (
+        <div className="mt-6 rounded-2xl bg-slate-900/50 p-4">
+          <div className="mb-2 text-center text-sm text-slate-300 font-ui">
+            Τελικός — Τοποθέτησε το ποντάρισμά σου (0–3) και πάτησε Επόμενο.
+          </div>
+          <div className="max-w-2xl mx-auto flex justify-center">
+            <WagerControl
+              label={p1.name}
+              value={wager.p1}
+              onChange={(n) => setWager({ p1: clamp(n, 0, 3) })}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex justify-center gap-3">
+        <NavButtons />
+      </div>
+    </StageCard>
+  );
+}
+
 
   function QuestionStage() {
     const mode = q.answerMode || "text";
@@ -1206,53 +1220,83 @@ export default function QuizPrototype({
 
   }
 
-  // ——— X2 Control (confirm-only) ———
-  function X2Control({ label, side, available, armed, onArm, isFinal, stage }) {
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const clickable = available && !isFinal && stage === STAGES.CATEGORY && !armed;
+function X2Control({
+  label,
+  side,
+  available,
+  armed,
+  onArm,
+  isFinal,
+  stage,
+  variant = "card",
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const clickable = available && !isFinal && stage === STAGES.CATEGORY && !armed;
 
-    function handlePrimaryClick() {
-      if (!clickable) return;
-      setConfirmOpen(true);
-    }
-    function confirmArm() {
-      setConfirmOpen(false);
-      onArm();
-    }
+  function handlePrimaryClick() {
+    if (!clickable) return;
+    setConfirmOpen(true);
+  }
+  function confirmArm() {
+    setConfirmOpen(false);
+    onArm();
+  }
 
-    const statusText = (() => {
-      if (isFinal) return "Δεν επιτρέπεται στον Τελικό.";
-      if (armed) return "Χ2 ενεργό για αυτή την ερώτηση.";
-      if (!available) return "Χ2 χρησιμοποιήθηκε.";
-      return "Μπορεί να χρησιμοποιηθεί μόνο μία φορά.";
-    })();
+  const statusText = (() => {
+    if (isFinal) return "Δεν επιτρέπεται στον Τελικό.";
+    if (armed) return "Χ2 ενεργό για αυτή την ερώτηση.";
+    if (!available) return "Χ2 χρησιμοποιήθηκε.";
+    return "Μπορεί να χρησιμοποιηθεί μόνο μία φορά.";
+  })();
+
+  // --- New compact CHIP variant ---
+  if (variant === "chip") {
+    const chipText = isFinal
+      ? "Χ2 δεν επιτρέπεται"
+      : armed
+      ? "⚡ Χ2 ενεργό"
+      : available
+      ? "⚡ Ενεργοποίηση Χ2"
+      : "Χ2 χρησιμοποιήθηκε";
+
+    const activeStyle = {
+      background: THEME.badgeGradient,
+      color: "#fff",
+      padding: ".45rem .9rem",
+      fontWeight: 800,
+      cursor: clickable ? "pointer" : "default",
+      opacity: clickable ? 1 : 0.75,
+    };
+    const mutedStyle = {
+      background: "rgba(148,163,184,0.18)",
+      border: "1px solid rgba(255,255,255,0.16)",
+      color: "rgba(255,255,255,0.85)",
+      padding: ".45rem .9rem",
+      fontWeight: 800,
+      opacity: 0.8,
+      cursor: "default",
+    };
+
+    const style = clickable || armed ? activeStyle : mutedStyle;
 
     return (
-      <div className="card font-ui mx-auto text-center relative">
-        {label ? <div className="mb-3 text-sm text-slate-300">{label}</div> : null}
-
+      <div className="relative inline-block">
         <button
-          className={[
-            "rounded-full px-5 py-2.5 text-white font-extrabold shadow transition",
-            clickable
-              ? "hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-pink-400"
-              : "opacity-60 cursor-not-allowed",
-          ].join(" ")}
-          style={{ background: THEME.badgeGradient }}
+          type="button"
+          className="pill select-none"
+          style={style}
           onClick={handlePrimaryClick}
           disabled={!clickable}
           aria-disabled={!clickable}
           aria-label="Ενεργοποίηση Χ2"
         >
-          {armed ? "Χ2 ενεργό" : "⚡ Ενεργοποίηση Χ2"}
+          {chipText}
         </button>
-
-        <div className="mt-2 text-xs text-slate-400">{statusText}</div>
 
         {/* Inline confirm popover */}
         {confirmOpen && (
           <div
-            className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl bg-slate-900/95 ring-1 ring-white/10 p-3 shadow-xl"
+            className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl bg-slate-900/95 ring-1 ring-white/10 p-3 shadow-xl z-10"
             role="dialog"
             aria-modal="true"
             aria-label="Επιβεβαίωση Χ2"
@@ -1270,6 +1314,51 @@ export default function QuizPrototype({
       </div>
     );
   }
+
+  // --- Original CARD variant (kept for backward-compat) ---
+  return (
+    <div className="card font-ui mx-auto text-center relative">
+      {label ? <div className="mb-3 text-sm text-slate-300">{label}</div> : null}
+
+      <button
+        className={[
+          "rounded-full px-5 py-2.5 text-white font-extrabold shadow transition",
+          clickable
+            ? "hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-pink-400"
+            : "opacity-60 cursor-not-allowed",
+        ].join(" ")}
+        style={{ background: THEME.badgeGradient }}
+        onClick={handlePrimaryClick}
+        disabled={!clickable}
+        aria-disabled={!clickable}
+        aria-label="Ενεργοποίηση Χ2"
+      >
+        {armed ? "Χ2 ενεργό" : "⚡ Ενεργοποίηση Χ2"}
+      </button>
+
+      <div className="mt-2 text-xs text-slate-400">{statusText}</div>
+
+      {confirmOpen && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl bg-slate-900/95 ring-1 ring-white/10 p-3 shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Επιβεβαίωση Χ2"
+        >
+          <div className="text-sm text-slate-200 font-semibold mb-1">Ενεργοποίηση Χ2;</div>
+          <div className="text-xs text-slate-400 mb-3">
+            Θα διπλασιάσει τους πόντους αυτής της ερώτησης. Συνέχεια;
+          </div>
+          <div className="flex justify-end gap-2">
+            <button className="btn btn-neutral" onClick={() => setConfirmOpen(false)}>Άκυρο</button>
+            <button className="btn btn-accent" onClick={confirmArm}>Ναι, ενεργοποίηση</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
   function WagerControl({ label, value, onChange }) {
     return (
