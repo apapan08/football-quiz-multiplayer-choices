@@ -107,7 +107,7 @@ export default function Landing() {
         </div>
 
         <div className="mt-6 text-center text-sm text-slate-300">
-          Θες μόνος σου; <a className="underline" href="/solo">Παίξε σόλο</a>
+          Θες μόνος σου; <a className="underline" href="/solo">Παίξε μόνος</a>
         </div>
       </div>
     </div>
