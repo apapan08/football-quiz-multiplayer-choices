@@ -3,13 +3,13 @@ import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import supabase from '../lib/supabaseClient';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
+import { QUIZ_ID } from '../lib/quizVersion';
 
 export default function Join() {
   const { code } = useParams();
   const nav = useNavigate();
   const { ready, userId, setName } = useSupabaseAuth();
 
-  // Πάντα κενό στην αρχή — ο χρήστης γράφει νέο όνομα
   const [tempName, setTempName] = useState('');
   const canJoin = (tempName || '').trim().length >= 2;
 
@@ -19,26 +19,30 @@ export default function Join() {
     if (!displayName) { alert('Βάλε ένα όνομα εμφάνισης'); return; }
 
     try {
-      // Αποθήκευση για μελλοντικές φορές (localStorage μέσω hook)
       setName(displayName);
 
-      // Βρες το δωμάτιο
-      const { data: room, error } = await supabase
-        .from('rooms')
-        .select('*')
+      // Prefer current QUIZ_ID, fallback to legacy
+      let { data: room } = await supabase
+        .from('rooms').select('*')
         .eq('code', (code || '').toUpperCase())
-        .single();
+        .eq('quiz_id', QUIZ_ID)
+        .maybeSingle();
 
-      if (error || !room) { alert('Το δωμάτιο δεν βρέθηκε'); return; }
+      if (!room) {
+        const fb = await supabase.from('rooms').select('*')
+          .eq('code', (code || '').toUpperCase())
+          .maybeSingle();
+        room = fb.data;
+      }
 
-      // Δήλωσε συμμετοχή
+      if (!room) { alert('Το δωμάτιο δεν βρέθηκε'); return; }
+
       const { error: upErr } = await supabase.from('participants').upsert(
         { room_id: room.id, user_id: userId, name: displayName, is_host: room.created_by === userId },
         { onConflict: 'room_id,user_id' }
       );
       if (upErr) { console.error(upErr); alert('Αποτυχία εισόδου στο δωμάτιο'); return; }
 
-      // Προχώρα στο lobby
       nav(`/room/${room.code}`);
     } catch (e) {
       console.error(e);
@@ -75,7 +79,6 @@ export default function Join() {
           />
         </div>
 
-        {/* Responsive action row to avoid overflow */}
         <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
           <a className="btn btn-neutral w-full sm:w-auto" href="/">← Αρχική</a>
           <button

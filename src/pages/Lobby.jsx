@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import supabase from '../lib/supabaseClient';
 import useRoomChannel from '../hooks/useRoomChannel';
+import { QUIZ_ID } from '../lib/quizVersion';
 
 export default function Lobby() {
   const { code } = useParams();
@@ -13,7 +14,6 @@ export default function Lobby() {
   const [room, setRoom] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  // DB-backed roster (participants table) to make joins appear instantly
   const [dbRoster, setDbRoster] = useState([]);
 
   const shareUrl =
@@ -21,25 +21,30 @@ export default function Lobby() {
       ? `${window.location.origin}/join/${(code || '').toUpperCase()}`
       : '';
 
-  // Guard: if visitor has no display name yet, send them to the Join page
   useEffect(() => {
     if (ready && !((name || '').trim())) {
       nav(`/join/${code}`, { replace: true });
     }
   }, [ready, name, code, nav]);
 
-  // Fetch room + ensure we are in participants
+  // Fetch room (prefer current quiz), ensure I'm a participant
   useEffect(() => {
     if (!ready || !userId) return;
 
     (async () => {
-      const { data, error } = await supabase
+      let q = await supabase
         .from('rooms')
         .select('*')
         .eq('code', code)
-        .single();
+        .eq('quiz_id', QUIZ_ID)
+        .maybeSingle();
 
-      if (error || !data) {
+      let data = q.data;
+      if (!data) {
+        const fb = await supabase.from('rooms').select('*').eq('code', code).maybeSingle();
+        data = fb.data;
+      }
+      if (!data) {
         alert('Το δωμάτιο δεν βρέθηκε');
         nav('/');
         return;
@@ -47,7 +52,6 @@ export default function Lobby() {
 
       setRoom(data);
 
-      // Upsert me as participant (RLS: user_id must equal auth.uid())
       const up = await supabase.from('participants').upsert(
         {
           room_id: data.id,
@@ -57,28 +61,22 @@ export default function Lobby() {
         },
         { onConflict: 'room_id,user_id' }
       );
-
-      if (up.error) {
-        console.error('participants upsert failed:', up.error);
-      }
+      if (up.error) console.error('participants upsert failed:', up.error);
     })();
   }, [ready, code, userId, name, nav]);
 
-  // Seed and live-update roster from DB (participants) for snappy joins
+  // Seed + realtime roster from participants
   useEffect(() => {
     if (!room?.id) return;
-
     let channel;
 
     (async () => {
-      // initial snapshot
       const { data } = await supabase
         .from('participants')
         .select('user_id,name,is_host')
         .eq('room_id', room.id);
       setDbRoster(data || []);
 
-      // realtime changes
       channel = supabase
         .channel(`participants:${room.id}`)
         .on(
@@ -90,9 +88,7 @@ export default function Lobby() {
               if (eventType === 'INSERT' || eventType === 'UPDATE') {
                 by.set(n.user_id, { user_id: n.user_id, name: n.name, is_host: n.is_host });
               }
-              if (eventType === 'DELETE' && o?.user_id) {
-                by.delete(o.user_id);
-              }
+              if (eventType === 'DELETE' && o?.user_id) by.delete(o.user_id);
               return Array.from(by.values());
             });
           }
@@ -100,28 +96,19 @@ export default function Lobby() {
         .subscribe();
     })();
 
-    return () => {
-      try { channel?.unsubscribe(); } catch {}
-    };
+    return () => { try { channel?.unsubscribe(); } catch {} };
   }, [room?.id]);
 
-  const isHost = useMemo(
-    () => room && userId === room.created_by,
-    [room, userId]
-  );
+  const isHost = useMemo(() => room && userId === room.created_by, [room, userId]);
 
-  // Presence roster (with optimistic self inside the hook)
   const { roster, broadcastStart } = useRoomChannel({
     code,
     user_id: userId,
     name: name || 'Player',
     is_host: isHost,
-    onStart: ({ startedAt }) => {
-      nav(`/play/${code}?t=${startedAt}`);
-    },
+    onStart: ({ startedAt }) => { nav(`/play/${code}?t=${startedAt}`); },
   });
 
-  // Merge DB roster (fast) with presence roster (authoritative online status)
   const displayRoster = useMemo(() => {
     const by = new Map();
     dbRoster.forEach(p => by.set(p.user_id, { ...p }));
@@ -148,32 +135,19 @@ export default function Lobby() {
   }
 
   return (
-    <div
-      className="min-h-screen p-6"
-      style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
-    >
+    <div className="min-h-screen p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}>
       <div className="card w-full max-w-2xl text-slate-100">
         <div className="flex items-center justify-between">
           <h1 className="font-display text-2xl font-extrabold">Lobby</h1>
-          <div className="pill bg-white/10">
-            Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span>
-          </div>
+          <div className="pill bg-white/10">Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span></div>
         </div>
 
         <div className="mt-4 text-sm text-slate-300 space-y-2">
           <div>Στείλε αυτό το link στους φίλους σου:</div>
 
-          {/* Share row — responsive to avoid overflow on small screens */}
           <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              className="flex-1 min-w-0 rounded-2xl bg-slate-900/60 px-4 py-2.5 text-slate-200 outline-none ring-1 ring-white/10"
-              readOnly
-              value={shareUrl}
-            />
-            <button
-              className="btn btn-neutral w-full sm:w-auto shrink-0"
-              onClick={copyInvite}
-            >
+            <input className="flex-1 min-w-0 rounded-2xl bg-slate-900/60 px-4 py-2.5 text-slate-200 outline-none ring-1 ring-white/10" readOnly value={shareUrl} />
+            <button className="btn btn-neutral w-full sm:w-auto shrink-0" onClick={copyInvite}>
               {copied ? '✓ Αντιγράφηκε' : 'Αντιγραφή'}
             </button>
           </div>
@@ -183,9 +157,7 @@ export default function Lobby() {
           </div>
           <div className="text-xs text-slate-400 mt-1">
             {isHost
-              ? (displayRoster.length < 2
-                  ? 'Περίμενε να μπουν τουλάχιστον 2 παίκτες για να ξεκινήσεις.'
-                  : 'Όταν είστε έτοιμοι, πάτησε «Ξεκίνα το παιχνίδι».')
+              ? (displayRoster.length < 2 ? 'Περίμενε να μπουν τουλάχιστον 2 παίκτες για να ξεκινήσεις.' : 'Όταν είστε έτοιμοι, πάτησε «Ξεκίνα το παιχνίδι».')
               : 'Περίμενε τον host να ξεκινήσει το παιχνίδι.'}
           </div>
         </div>
@@ -199,24 +171,12 @@ export default function Lobby() {
               </div>
             </li>
           ))}
-          {displayRoster.length === 0 && (
-            <li className="py-3 text-slate-400">Συνδέεσαι…</li>
-          )}
+          {displayRoster.length === 0 && <li className="py-4 text-slate-400">Κανείς δεν είναι μέσα ακόμα…</li>}
         </ul>
 
-        <div className="mt-6 flex items-center justify-between">
-          <button className="btn btn-neutral" onClick={() => nav('/')}>
-            ← Πίσω
-          </button>
-          {isHost && (
-            <button
-              className="btn btn-accent disabled:opacity-50"
-              onClick={startGame}
-              disabled={!canStart}
-            >
-              Ξεκίνα το παιχνίδι
-            </button>
-          )}
+        <div className="mt-6 flex justify-between">
+          <a className="btn btn-neutral" href="/">← Αρχική</a>
+          <button className="btn btn-accent disabled:opacity-60" disabled={!canStart} onClick={startGame}>Ξεκίνα το παιχνίδι</button>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 // src/components/ResultsOverlayV2.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import supabase from "../lib/supabaseClient";
+import { QUIZ_ID } from "../lib/quizVersion";
 
 // ---------- helpers ----------
 function ordinal(n) {
@@ -18,7 +19,7 @@ function fmtTime(sec) {
 // NOTE: runs table uses finished_at (not created_at)
 const RUNS_COLS =
   "user_id,name,score,max_streak,duration_seconds,finished_at";
-// Global table has created_at
+// Global table has created_at (we fetch it for stable sorting/keys; not shown in UI)
 const GLB_COLS = "user_id,name,score,duration_seconds,created_at";
 
 // ---------- room data ----------
@@ -185,14 +186,12 @@ export default function ResultsOverlayV2({
 }) {
   const { room, rows, totalPlayers, yourRank } = useRoomData(roomCode, youId, seedRow);
   const finished = rows.length;
-  const { top /*, yours*/ } = useGlobalAllTime("default", youId, finished);
+  const { top /*, yours*/ } = useGlobalAllTime(QUIZ_ID, youId, finished); // ← scoped to QUIZ_ID
   const total = Math.max(totalPlayers, finished || 1);
 
   // Always default to ROOM now
   const [internalView, setInternalView] = useState("room");
-  useEffect(() => {
-    if (view) setInternalView(view);
-  }, [view]);
+  useEffect(() => { if (view) setInternalView(view); }, [view]);
 
   function setView(next) {
     if (onViewChange) onViewChange(next);
@@ -217,9 +216,7 @@ export default function ResultsOverlayV2({
         <div className="px-6 py-4 border-b border-white/10 flex flex-col gap-1">
           <div className="flex items-center justify-between">
             <div className="font-display text-2xl font-extrabold text-white">
-              {internalView === "room"
-                ? "Room Leaderboard"
-                : "Global Leaderboard (All submissions)"}
+              {internalView === "room" ? "Room Leaderboard" : "Global Leaderboard"}
             </div>
             <button
               onClick={onClose}
@@ -233,7 +230,7 @@ export default function ResultsOverlayV2({
           <div className="text-sm text-slate-300" aria-live="polite">
             {internalView === "room"
               ? statusText
-              : <>Showing Top 50 — <span className="text-slate-400">All submissions (duplicates allowed)</span></>}
+              : <>Showing Top 50</>}
           </div>
         </div>
 
@@ -257,7 +254,9 @@ export default function ResultsOverlayV2({
                       <td className="px-4 py-2 border-t border-white/10">
                         <span className="font-semibold">{r.name}</span>
                         {r.user_id === youId && (
-                          <span className="ml-2 text-[10px] font-extrabold bg-white text-black rounded px-1.5 py-0.5 align-middle">YOU</span>
+                          <span className="ml-2 text-[10px] font-extrabold bg-white text-black rounded px-1.5 py-0.5 align-middle">
+                            YOU
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-2 border-t border-white/10">{fmtTime(r.duration_seconds)}</td>
@@ -292,7 +291,9 @@ export default function ResultsOverlayV2({
                       <td className="px-4 py-2 border-t border-white/10">
                         <span className="font-semibold">{r.name}</span>
                         {r.user_id === youId && (
-                          <span className="ml-2 text-[10px] font-extrabold bg-white text-black rounded px-1.5 py-0.5 align-middle">YOU</span>
+                          <span className="ml-2 text-[10px] font-extrabold bg-white text-black rounded px-1.5 py-0.5 align-middle">
+                            YOU
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-2 border-t border-white/10">{fmtTime(r.duration_seconds)}</td>
@@ -310,7 +311,7 @@ export default function ResultsOverlayV2({
           )}
         </div>
 
-        {/* footer: only switcher, no restart, no "my results" */}
+        {/* footer: only switcher */}
         <div className="px-6 py-4 border-t border-white/10 flex flex-col gap-2">
           {internalView === "room" ? (
             <button className="btn btn-accent w-full" onClick={() => setView("global")}>

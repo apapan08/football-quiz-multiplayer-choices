@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import supabase from '../lib/supabaseClient';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { generateUniqueRoomCode } from '../lib/roomCode';
+import { QUIZ_ID } from '../lib/quizVersion';
 
 export default function Landing() {
   const nav = useNavigate();
@@ -17,7 +18,13 @@ export default function Landing() {
     const roomCode = await generateUniqueRoomCode();
     const { data: room, error: e1 } = await supabase
       .from('rooms')
-      .insert({ code: roomCode, created_by: userId, status: 'lobby', settings: {} })
+      .insert({
+        code: roomCode,
+        created_by: userId,
+        status: 'lobby',
+        settings: {},
+        quiz_id: QUIZ_ID,       // ← version tag
+      })
       .select('*')
       .single();
 
@@ -37,7 +44,13 @@ export default function Landing() {
     if (!c || c.length !== 5) { alert('Έγκυρος κωδικός 5 γραμμάτων'); return; }
     if (!name.trim()) { alert('Βάλε ένα όνομα εμφάνισης'); return; }
 
-    const { data: room, error } = await supabase.from('rooms').select('*').eq('code', c).single();
+    // Prefer current version, but gracefully fall back for legacy rooms
+    let { data: room, error } = await supabase.from('rooms')
+      .select('*').eq('code', c).eq('quiz_id', QUIZ_ID).maybeSingle();
+    if (!room) {
+      const fallback = await supabase.from('rooms').select('*').eq('code', c).maybeSingle();
+      room = fallback.data; error = fallback.error;
+    }
     if (error || !room) { alert('Το δωμάτιο δεν βρέθηκε'); return; }
 
     await supabase
@@ -71,18 +84,11 @@ export default function Landing() {
           />
         </div>
 
-        {/* Actions row: responsive + no overflow */}
         <div className="mt-6 flex flex-col sm:flex-row items-stretch gap-3">
-          {/* Create room */}
-          <button
-            className="btn btn-accent w-full sm:w-auto"
-            onClick={createRoom}
-            disabled={!canCreate}
-          >
+          <button className="btn btn-accent w-full sm:w-auto" onClick={createRoom} disabled={!canCreate}>
             Δημιούργησε Δωμάτιο
           </button>
 
-          {/* Code input grows in the middle */}
           <div className="flex-1 min-w-0">
             <input
               className="w-full rounded-2xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400 uppercase"
@@ -95,12 +101,7 @@ export default function Landing() {
             />
           </div>
 
-          {/* Join button stays inside card */}
-          <button
-            className="btn btn-neutral w-full sm:w-auto shrink-0 whitespace-nowrap"
-            onClick={joinRoom}
-            disabled={!canJoin}
-          >
+          <button className="btn btn-neutral w-full sm:w-auto shrink-0 whitespace-nowrap" onClick={joinRoom} disabled={!canJoin}>
             Μπες
           </button>
         </div>

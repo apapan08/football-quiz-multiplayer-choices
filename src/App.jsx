@@ -11,6 +11,7 @@ import { useMediaPrefetch } from "./hooks/useMediaPrefetch";
 
 // Media
 import Media from "./components/Media";
+import { QUIZ_ID } from "./lib/quizVersion";
 
 /**
  * Football Quiz — SOLO MODE (single player)
@@ -66,7 +67,9 @@ const THEME = {
 };
 
 // ——— Game constants ———
-const STORAGE_KEY = "quiz_prototype_state_v2_solo";
+// Namespace all client persistence by quiz version so flipping QUIZ_ID
+// makes previous progress invisible to the new version.
+const STORAGE_KEY = `quiz_prototype_state_v2_solo:${QUIZ_ID}`;
 const STAGES = {
   NAME: "name",
   INTRO: "intro",

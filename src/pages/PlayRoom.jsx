@@ -6,6 +6,7 @@ import supabase from '../lib/supabaseClient';
 import useRoomChannel from '../hooks/useRoomChannel';
 import QuizPrototype from '../App.jsx';
 import ResultsOverlayV2 from '../components/ResultsOverlayV2.jsx';
+import { QUIZ_ID } from '../lib/quizVersion';
 
 function useQuery() {
   const { search } = useLocation();
@@ -21,92 +22,62 @@ export default function PlayRoom() {
   const { ready, userId, name } = useSupabaseAuth();
   const roomRef = useRef(null);
 
-  // Overlay
   const [showOverlay, setShowOverlay] = useState(false);
   const [mySeedRow, setMySeedRow] = useState(null);
-  // Store personal per-question result rows for the current match.
   const [myResultRows, setMyResultRows] = useState([]);
-  // Remember which overlay tab was last active (room, global or my).
   const [overlayView, setOverlayView] = useState(null);
-  const [results, setResults] = useState([]); // kept (not strictly needed by V2 anymore)
+  const [results, setResults] = useState([]);
   const [totalPlayers, setTotalPlayers] = useState(0);
 
   async function refreshResults() {
     const room = roomRef.current;
     if (!room) return;
     const [runsRes, partsRes] = await Promise.all([
-      supabase
-        .from('runs')
-        .select('user_id,name,score,max_streak,duration_seconds,finished_at')
-        .eq('room_id', room.id),
-      supabase
-        .from('participants')
-        .select('user_id')
-        .eq('room_id', room.id),
+      supabase.from('runs').select('user_id,name,score,max_streak,duration_seconds,finished_at').eq('room_id', room.id),
+      supabase.from('participants').select('user_id').eq('room_id', room.id),
     ]);
-    if (runsRes.error) console.error('runs select error:', runsRes.error);
-    if (partsRes.error) console.error('participants select error:', partsRes.error);
-    const runs = runsRes.data || [];
-    const parts = partsRes.data || [];
-    runs.sort(
+    const runs = (runsRes.data || []).sort(
       (a, b) =>
         (b.score - a.score) ||
         ((a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9)) ||
         (new Date(a.finished_at ?? 0) - new Date(b.finished_at ?? 0))
     );
     setResults(runs);
-    setTotalPlayers(parts.length || 0);
+    setTotalPlayers((partsRes.data || []).length || 0);
   }
 
-  // Fetch room & upsert participant once we have userId
   useEffect(() => {
     if (!ready || !userId) return;
     let channel;
     (async () => {
-      const { data: room, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('code', code)
-        .single();
-
-      if (error || !room) {
-        alert('Δωμάτιο δεν βρέθηκε');
-        nav('/');
-        return;
+      // Prefer current version, but allow legacy rooms by code only
+      let r = await supabase.from('rooms').select('*').eq('code', code).eq('quiz_id', QUIZ_ID).maybeSingle();
+      let room = r.data;
+      if (!room) {
+        const fb = await supabase.from('rooms').select('*').eq('code', code).maybeSingle();
+        room = fb.data;
       }
+      if (!room) { alert('Δωμάτιο δεν βρέθηκε'); nav('/'); return; }
       roomRef.current = room;
 
-      // Register / ensure participant (RLS: user_id must equal auth.uid())
       const up = await supabase.from('participants').upsert(
         { room_id: room.id, user_id: userId, name: name || 'Player', is_host: room.created_by === userId },
         { onConflict: 'room_id,user_id' }
       );
-      if (up.error) {
-        console.error('participants upsert failed:', up.error);
-      }
+      if (up.error) console.error('participants upsert failed:', up.error);
 
       await refreshResults();
 
-      // Realtime: keep local "results"/counts updated (even though V2 fetches its own)
       channel = supabase
         .channel(`runs:${room.id}`)
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'runs', filter: `room_id=eq.${room.id}` },
-          refreshResults
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'participants', filter: `room_id=eq.${room.id}` },
-          refreshResults
-        )
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'runs', filter: `room_id=eq.${room.id}` }, refreshResults)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'participants', filter: `room_id=eq.${room.id}` }, refreshResults)
         .subscribe();
     })();
 
     return () => { if (channel) supabase.removeChannel(channel); };
   }, [ready, userId, code, nav, name]);
 
-  // Presence & finish broadcast
   const roomChannelData = useRoomChannel({
     code,
     user_id: userId,
@@ -122,12 +93,11 @@ export default function PlayRoom() {
   async function onFinish({ score, maxStreak, durationSeconds, resultRows }) {
     if (hasFinishedRef.current) return;
     if (!ready || !userId) return;
-
     hasFinishedRef.current = true;
+
     const room = roomRef.current;
     if (!room) return;
 
-    // Upsert result (write finished_at)
     const { error } = await supabase.from('runs').upsert(
       {
         room_id: room.id,
@@ -137,42 +107,28 @@ export default function PlayRoom() {
         max_streak: maxStreak,
         duration_seconds: durationSeconds,
         finished_at: new Date().toISOString(),
+        quiz_id: QUIZ_ID,           // ← version tag for runs
       },
       { onConflict: 'room_id,user_id' }
     );
     if (error) {
-      hasFinishedRef.current = false; // allow retry on real failure
+      hasFinishedRef.current = false;
       console.error('runs upsert failed:', error);
       alert('Αποτυχία καταχώρησης αποτελέσματος (δείτε console).');
       return;
     }
 
-    // Broadcast finish & open overlay
-    await broadcastFinish({
-      user_id: userId,
-      name: name || 'Player',
-      score,
-      max_streak: maxStreak,
-      duration_seconds: durationSeconds
-    });
+    await broadcastFinish({ user_id: userId, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds });
     await refreshResults();
-    setMySeedRow({
-      user_id: userId,
-      name: name || 'Player',
-      score,
-      max_streak: maxStreak,           // ← added max_streak
-      duration_seconds: durationSeconds,
-      finished_at: new Date().toISOString(),
-    });
-    // Persist the detailed per-question results so the overlay can display the personal breakdown.
+
+    setMySeedRow({ user_id: userId, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds, finished_at: new Date().toISOString() });
     if (Array.isArray(resultRows)) setMyResultRows(resultRows);
-      setOverlayView("room");   // open overlay on Room by default
-      setShowOverlay(true);
+    setOverlayView('room');
+    setShowOverlay(true);
   }
 
   return (
     <>
-      {/* The quiz itself */}
       <QuizPrototype
         roomCode={code}
         startedAtOverride={startedAt}
@@ -181,7 +137,6 @@ export default function PlayRoom() {
         onOpenOverlayRequest={() => setShowOverlay(true)}
       />
 
-      {/* Three-view overlay (Room / Global / My Results) */}
       {showOverlay && (
         <ResultsOverlayV2
           onClose={() => setShowOverlay(false)}

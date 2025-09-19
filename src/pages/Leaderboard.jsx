@@ -1,13 +1,14 @@
 // src/pages/Leaderboard.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import supabase from '../lib/supabaseClient';
 import  useRoomChannel  from '../hooks/useRoomChannel';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
-1
+import { QUIZ_ID } from '../lib/quizVersion';
+
 function sortRows(a, b) {
   if (b.score !== a.score) return b.score - a.score;
-  return a.duration_seconds - b.duration_seconds;
+  return (a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9);
 }
 
 export default function Leaderboard() {
@@ -20,9 +21,16 @@ export default function Leaderboard() {
   useEffect(() => {
     if (!ready) return;
     (async () => {
-      const { data: r } = await supabase.from('rooms').select('*').eq('code', code).single();
+      // Prefer current version, but allow legacy
+      let q = await supabase.from('rooms').select('*').eq('code', code).eq('quiz_id', QUIZ_ID).maybeSingle();
+      let r = q.data;
+      if (!r) {
+        const fb = await supabase.from('rooms').select('*').eq('code', code).maybeSingle();
+        r = fb.data;
+      }
       if (!r) { alert('Δωμάτιο δεν βρέθηκε'); nav('/'); return; }
       setRoom(r);
+
       const { data } = await supabase.from('runs')
         .select('user_id,name,score,max_streak,duration_seconds,finished_at')
         .eq('room_id', r.id);
