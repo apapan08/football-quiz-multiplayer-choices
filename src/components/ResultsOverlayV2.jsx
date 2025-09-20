@@ -247,7 +247,7 @@ export default function ResultsOverlayV2({
         <div className="px-6 py-4 border-b border-white/10 flex flex-col gap-1">
           <div className="flex items-center justify-between">
             <div className="font-display text-2xl font-extrabold text-white">
-              {internalView === "room" ? "Κατάταξη Δωματίου" : "Παγκόσμια Κατάταξη"}
+              {internalView === "room" ? "Κατάταξη Δωματίου" : "Συνολική Κατάταξη"}
             </div>
             <button onClick={onClose} className="btn btn-accent px-3 py-1.5 rounded-xl" aria-label="Close">
               ×
@@ -345,7 +345,7 @@ export default function ResultsOverlayV2({
           <div className="px-6 py-4 border-t border-white/10 flex flex-col gap-2">
             {internalView === "room" ? (
               <button className="btn btn-accent w-full" onClick={() => setView("global")}>
-                Παγκόσμια Κατάταξη
+                Συνολική Κατάταξη
               </button>
             ) : (
               <button className="btn btn-accent w-full" onClick={() => setView("room")}>
