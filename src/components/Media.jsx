@@ -1,12 +1,12 @@
 // src/components/Media.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-const Media = React.memo(function Media({ media }) {
+const Media = React.memo(function Media({ media, onReady }) {
   if (!media || !media.kind) return null;
 
-  if (media.kind === "image") return <OptimizedImage media={media} />;
-  if (media.kind === "audio") return <OptimizedAudio media={media} />;
-  if (media.kind === "video") return <OptimizedVideo media={media} />;
+  if (media.kind === "image") return <OptimizedImage media={media} onReady={onReady} />;
+  if (media.kind === "audio") return <OptimizedAudio media={media} onReady={onReady} />;
+  if (media.kind === "video") return <OptimizedVideo media={media} onReady={onReady} />;
 
   return null;
 });
@@ -14,7 +14,7 @@ const Media = React.memo(function Media({ media }) {
 export default Media;
 
 /* -------------------- Image -------------------- */
-function OptimizedImage({ media }) {
+function OptimizedImage({ media, onReady }) {
   const { src, alt = "", priority = false, webp, avif } = media;
   const [loaded, setLoaded] = useState(false);
 
@@ -43,7 +43,10 @@ function OptimizedImage({ media }) {
           "transition-opacity duration-200",
           loaded ? "opacity-100" : "opacity-0",
         ].join(" ")}
-        onLoad={() => setLoaded(true)}
+        onLoad={() => {
+          setLoaded(true);
+          try { onReady && onReady(); } catch {}
+        }}
       />
     </picture>
   );
@@ -70,7 +73,7 @@ function useInView(ref, rootMargin = "600px") {
   return inView;
 }
 
-function OptimizedVideo({ media }) {
+function OptimizedVideo({ media, onReady }) {
   const { src, type = "video/mp4", poster } = media;
   const vRef = useRef(null);
   const inView = useInView(vRef, "600px"); // a bit earlier
@@ -97,7 +100,10 @@ function OptimizedVideo({ media }) {
       playsInline
       poster={poster}
       className={`w-full rounded-md bg-black/5 ${ready ? "opacity-100" : "opacity-0"}`}
-      onCanPlay={() => setReady(true)}
+      onCanPlay={() => {
+        setReady(true);
+        try { onReady && onReady(); } catch {}
+      }}
     >
       {srcOn ? <source src={srcOn} type={type} /> : null}
       Το πρόγραμμα περιήγησής σου δεν μπορεί να αναπαράγει αυτό το βίντεο.
@@ -106,7 +112,7 @@ function OptimizedVideo({ media }) {
 }
 
 /* -------------------- Audio -------------------- */
-function OptimizedAudio({ media }) {
+function OptimizedAudio({ media, onReady }) {
   const { src } = media;
   return (
     <audio
@@ -115,6 +121,9 @@ function OptimizedAudio({ media }) {
       playsInline
       className="w-full mt-2"
       style={{ minHeight: 44 }}
+      onCanPlay={() => {
+        try { onReady && onReady(); } catch {}
+      }}
     >
       <source src={src} type="audio/mpeg" />
       Το πρόγραμμα περιήγησής σου δεν μπορεί να αναπαράγει αυτό το ηχητικό.

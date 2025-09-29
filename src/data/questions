@@ -10,6 +10,9 @@ export const questions = [
     prompt: "Ποια είναι η 2η εθνικότητα του Bukayo Saka;",
     type: "open",
 
+    // NEW: per-question time (seconds)
+    time_seconds: 25,
+
     answerMode: "catalog",
     catalog: "countries",
     acceptKeys: ["NG"],
@@ -29,6 +32,9 @@ export const questions = [
     type: "open",
     media: { kind: "video", src: "/Videos/Video1.mp4" },
 
+    // NEW
+    time_seconds: 30,
+
     answerMode: "scoreline",
     teams: { home: "Chelsea", away: "Barcelona" },
     acceptScores: [{ home: 1, away: 1 }],
@@ -45,6 +51,9 @@ export const questions = [
     prompt: "Ποιος είναι ο παίκτης με την παρακάτω καριέρα;",
     type: "open",
     media: { kind: "image", src: "/Images/Photo2.png" },
+
+    // NEW
+    time_seconds: 75,
 
     answerMode: "catalog",
     catalog: "players",
@@ -63,13 +72,14 @@ export const questions = [
     type: "open",
     media: { kind: "image", src: "/Images/Photo1.png" },
 
+    // NEW
+    time_seconds: 60,
+
     answerMode: "catalog",
     catalog: "players",
     accept: ["Dejan Lovren"],
     answer: "Dejan Lovren",
   },
-
-
 
   // 5) Iconic player → Zidane first pro club
   {
@@ -81,6 +91,9 @@ export const questions = [
     prompt:
       "Ποιά ήταν η πρώτη ευρωπαική ομάδα που αγωνίστηκε ο βραζιλιάνος ποδοφαιριστής Kaká;",
     type: "open",
+
+    // NEW
+    time_seconds: 30,
 
     answerMode: "catalog",
     catalog: "teams",
@@ -99,6 +112,9 @@ export const questions = [
     type: "open",
     media: { kind: "image", src: "/Images/Photo3.png" },
 
+    // NEW
+    time_seconds: 120,
+
     answerMode: "catalog",
     catalog: "players",
     accept: ["Roberto Carlos"],
@@ -116,6 +132,9 @@ export const questions = [
       "Ποιας ομάδας, που αγωνίζεται φέτος στη League Phase του Champions League, το στάδιο βρίσκεται βορειότερα;",
     type: "open",
 
+    // NEW
+    time_seconds: 75,
+
     answerMode: "catalog",
     catalog: "teams",
     accept: ["FK Bodø/Glimt", "Bodø/Glimt", "Bodo/Glimt"],
@@ -132,6 +151,9 @@ export const questions = [
     prompt:
       "Ποιος ποδοσφαιριστής είναι η ακριβότερη πώληση της Ατλέτικο Μαδρίτης μετά τον Antoine Griezmann;",
     type: "open",
+
+    // NEW
+    time_seconds: 75,
 
     answerMode: "catalog",
     catalog: "players",
@@ -151,6 +173,9 @@ export const questions = [
       "Πόσες διαφορετικές ομάδες (και εθνικές) έχει προπονήσει ο παρακάτω προπονητής;",
     type: "open",
     media: { kind: "image", src: "/Images/Photo4.png", alt: "Photo quiz 1" },
+
+    // NEW
+    time_seconds: 120,
 
     answerMode: "numeric",
     acceptNumber: 8,

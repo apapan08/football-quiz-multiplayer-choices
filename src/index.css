@@ -74,7 +74,7 @@
     a:hover {
       color: #747bff;
     }
-    button:not(.btn) {
+    button:not(.btn) {  
       background-color: #f9f9f9;
     }
   }

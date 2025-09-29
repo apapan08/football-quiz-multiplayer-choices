@@ -3,14 +3,15 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { questions as DATA_QUESTIONS } from "./data/questions";
 import ResultsTableResponsive from "./components/ResultsTableResponsive";
 
-// Imports for auto-marking + inputs
+// Inputs & validation
 import AutoCompleteAnswer from "./components/AutoCompleteAnswer";
 import ScoreInput from "./components/ScoreInput";
 import { validate as baseValidate } from "./lib/validators";
 import { useMediaPrefetch } from "./hooks/useMediaPrefetch";
 
-// Media
+// Media & timers
 import Media from "./components/Media";
+import CountdownBar from "./components/CountdownBar";
 import { QUIZ_ID } from "./lib/quizVersion";
 
 /**
@@ -79,6 +80,15 @@ const STAGES = {
   FINALE: "finale",
   RESULTS: "results",
 };
+
+// ——— NEW Timer constants / keys ———
+const DEFAULT_QUESTION_SECONDS = 25;
+const DEFAULT_CATEGORY_SECONDS = 20;
+const DEFAULT_ANSWER_SECONDS = 10;
+const GRACE_MS = 1000;
+const CATEGORY_DEADLINE_KEY = `${STORAGE_KEY}:categoryDeadlineMs`;
+const questionDeadlineKey = (i) => `${STORAGE_KEY}:questionDeadlineMs:${i}`;
+const answerDeadlineKey = (i) => `${STORAGE_KEY}:answerDeadlineMs:${i}`;
 
 function clamp(n, a, b) {
   return Math.min(b, Math.max(a, n));
@@ -265,36 +275,37 @@ export default function QuizPrototype({
       setP1((s) => ({ ...s, name: playerName.trim().slice(0, 18) }));
     }
   }, [playerName]); // eslint-disable-line react-hooks/exhaustive-deps
-  const NAME_KEY = 'display_name_v1';
+  const NAME_KEY = "display_name_v1";
 
-
-
-
-  const persistDisplayName = React.useCallback((raw) => {
-    const v = (raw ?? '').toString().trim().slice(0, 24);
-    try { localStorage.setItem(NAME_KEY, v); } catch {}
-    if (onNameSaved) onNameSaved(v);
-  }, [onNameSaved]);
+  const persistDisplayName = React.useCallback(
+    (raw) => {
+      const v = (raw ?? "").toString().trim().slice(0, 24);
+      try {
+        localStorage.setItem(NAME_KEY, v);
+      } catch {}
+      if (onNameSaved) onNameSaved(v);
+    },
+    [onNameSaved]
+  );
 
   const didPersistNameRef = React.useRef(false);
 
   // If we somehow land on NAME with a known name, auto-skip to INTRO
-useEffect(() => {
-  if (stage !== STAGES.NAME) return;
+  useEffect(() => {
+    if (stage !== STAGES.NAME) return;
 
-  // Prefer what the user typed on the Name stage; fall back to prop
-  const typed = (p1?.name ?? '').trim();
-  const passed = (playerName ?? '').trim();
-  const effective = typed || passed;
-  if (!effective) return;
+    // Prefer what the user typed on the Name stage; fall back to prop
+    const typed = (p1?.name ?? "").trim();
+    const passed = (playerName ?? "").trim();
+    const effective = typed || passed;
+    if (!effective) return;
 
-  if (!didPersistNameRef.current) {
-    persistDisplayName(effective);     // save to localStorage + notify parent
-    didPersistNameRef.current = true;  // guard against double runs
-  }
-  setStage(STAGES.INTRO);              // advance after persisting the name
-}, [stage, p1?.name, playerName, persistDisplayName, setStage]);
-
+    if (!didPersistNameRef.current) {
+      persistDisplayName(effective); // save to localStorage + notify parent
+      didPersistNameRef.current = true; // guard against double runs
+    }
+    setStage(STAGES.INTRO); // advance after persisting the name
+  }, [stage, p1?.name, playerName, persistDisplayName, setStage]);
 
   const [lastCorrect, setLastCorrect] = usePersistentState(
     `${STORAGE_KEY}:lastCorrect`,
@@ -343,8 +354,14 @@ useEffect(() => {
   }, [stage, isFinalIndex, finalTipShown]);
 
   // HUD flags
-  const [justScored, setJustScored] = usePersistentState(`${STORAGE_KEY}:hud:justScored`, false);
-  const [justLostStreak, setJustLostStreak] = usePersistentState(`${STORAGE_KEY}:hud:justLost`, false);
+  const [justScored, setJustScored] = usePersistentState(
+    `${STORAGE_KEY}:hud:justScored`,
+    false
+  );
+  const [justLostStreak, setJustLostStreak] = usePersistentState(
+    `${STORAGE_KEY}:hud:justLost`,
+    false
+  );
   useEffect(() => {
     if (justScored) {
       const t = setTimeout(() => setJustScored(false), 320);
@@ -431,6 +448,27 @@ useEffect(() => {
     setWager({ p1: 0 });
   }, [stage, index]);
 
+  // Aggregate modal flag for pausing timers
+  const anyModalOpen = showHowTo || showFinalHowTo;
+
+  // Clear Category deadline when leaving Category
+  useEffect(() => {
+    if (stage !== STAGES.CATEGORY) {
+      try {
+        localStorage.removeItem(CATEGORY_DEADLINE_KEY);
+      } catch {}
+    }
+  }, [stage]);
+
+  // NEW: Clear Answer deadline when leaving Answer
+  useEffect(() => {
+    if (stage !== STAGES.ANSWER) {
+      try {
+        localStorage.removeItem(answerDeadlineKey(index));
+      } catch {}
+    }
+  }, [stage, index]);
+
   // X2 helpers
   function canArmX2(side) {
     const player = x2[side];
@@ -486,7 +524,10 @@ useEffect(() => {
       setP1((s) => ({ ...s, score: s.score - bet }));
     }
     setFinalResolved({ p1: true });
-    setAnswered((a) => ({ ...a, [index]: outcome === "correct" ? "final-correct" : "final-wrong" }));
+    setAnswered((a) => ({
+      ...a,
+      [index]: outcome === "correct" ? "final-correct" : "final-wrong",
+    }));
   }
 
   function next() {
@@ -524,7 +565,7 @@ useEffect(() => {
   function resetGame() {
     setIndex(0);
     // Go to INTRO if we have a name (from prop or saved), else ask for it
-    setStage((p1.name || playerName) ? STAGES.INTRO : STAGES.NAME);
+    setStage(p1.name || playerName ? STAGES.INTRO : STAGES.NAME);
     setP1({ name: p1.name, score: 0, streak: 0, maxStreak: 0 });
     setWager({ p1: 0 });
     setFinalResolved({ p1: false });
@@ -534,16 +575,27 @@ useEffect(() => {
     setPlayerAnswers({});
     setIntroHowToShown(false);
     setFinalTipShown(false);
+    try {
+      localStorage.removeItem(CATEGORY_DEADLINE_KEY);
+      for (let i = 0; i < QUESTIONS.length; i++) {
+        localStorage.removeItem(questionDeadlineKey(i));
+        localStorage.removeItem(answerDeadlineKey(i));
+      }
+    } catch {}
     // keep startedAt as-is; it will be set again when INTRO is reached
   }
 
   async function exportShareCard() {
-    const w = 1080, h = 1350;
+    const w = 1080,
+      h = 1350;
     const c = document.createElement("canvas");
-    c.width = w; c.height = h;
+    c.width = w;
+    c.height = h;
     const ctx = c.getContext("2d");
     if (document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch {}
+      try {
+        await document.fonts.ready;
+      } catch {}
     }
     const g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, THEME.gradientFrom);
@@ -570,7 +622,10 @@ useEffect(() => {
   }
 
   // ——— Multiplayer timing support ———
-  const [startedAt, setStartedAt] = usePersistentState(`${STORAGE_KEY}:startedAt`, null);
+  const [startedAt, setStartedAt] = usePersistentState(
+    `${STORAGE_KEY}:startedAt`,
+    null
+  );
 
   // Prefer broadcasted start time if provided (multiplayer)
   useEffect(() => {
@@ -588,7 +643,9 @@ useEffect(() => {
   useEffect(() => {
     if (stage === STAGES.RESULTS && onFinish && !finishFiredRef.current) {
       finishFiredRef.current = true;
-      const durSec = startedAt ? Math.max(0, Math.round((Date.now() - startedAt) / 1000)) : 0;
+      const durSec = startedAt
+        ? Math.max(0, Math.round((Date.now() - startedAt) / 1000))
+        : 0;
       try {
         // Convert RESULT_ROWS to the shape expected by the overlay.
         const resultRows = RESULT_ROWS.map((r) => ({
@@ -596,7 +653,8 @@ useEffect(() => {
           category: r.category,
           points: r.base,
           isFinal: r.isFinal,
-          correct: r.outcome === "Σωστό" ? true : r.outcome === "Λάθος" ? false : null,
+          correct:
+            r.outcome === "Σωστό" ? true : r.outcome === "Λάθος" ? false : null,
           x2: r.x2Applied,
           answerText: r.userAnswer,
           answerSide: null,
@@ -618,13 +676,23 @@ useEffect(() => {
   }, [stage, onFinish, p1.score, p1.maxStreak, startedAt, roomCode, RESULT_ROWS]);
 
   // ——— UI subcomponents ———
-  function HUDHeader({ stage, current, total, score, streak, justScored, justLostStreak }) {
+  function HUDHeader({
+    stage,
+    current,
+    total,
+    score,
+    streak,
+    justScored,
+    justLostStreak,
+  }) {
     const isPreGame = stage === STAGES.NAME || stage === STAGES.INTRO;
-    const shownCurrent = isPreGame ? 0 : (current + 1);
+    const shownCurrent = isPreGame ? 0 : current + 1;
     const pct = total > 0 ? (shownCurrent / total) * 100 : 0;
 
     const progressText = isPreGame ? "Έναρξη" : `Ερ. ${current + 1} από ${total}`;
-    const ariaText = isPreGame ? `Έναρξη — ${total} ερωτήσεις` : `Ερώτηση ${current + 1} από ${total}`;
+    const ariaText = isPreGame
+      ? `Έναρξη — ${total} ερωτήσεις`
+      : `Ερώτηση ${current + 1} από ${total}`;
 
     return (
       <div className="px-3 pt-4">
@@ -636,30 +704,55 @@ useEffect(() => {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {/* Left: Progress */}
               <div className="min-w-0 sm:flex-1">
-                <div className="text-sm font-semibold text-slate-200" aria-label={ariaText}>
+                <div
+                  className="text-sm font-semibold text-slate-200"
+                  aria-label={ariaText}
+                >
                   {progressText}
                 </div>
-                <div className="mt-1 h-2 w-full rounded-full bg-white/10 overflow-hidden" role="progressbar"
-                     aria-valuenow={shownCurrent} aria-valuemin={0} aria-valuemax={total}>
-                  <div className="h-full rounded-full transition-all duration-300 ease-out"
-                       style={{ width: `${pct}%`, background: THEME.accent }} />
+                <div
+                  className="mt-1 h-2 w-full rounded-full bg-white/10 overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={shownCurrent}
+                  aria-valuemin={0}
+                  aria-valuemax={total}
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${pct}%`, background: THEME.accent }}
+                  />
                 </div>
               </div>
 
               {/* Right: Score & Streak */}
               <div className="flex items-end justify-between gap-8 sm:justify-end">
-                <div className={`text-right ${justScored ? "hud-score-pop" : ""}`} aria-label={`Σκορ ${score}`}>
-                  <div className="text-xs uppercase tracking-wide text-slate-300">Σκορ</div>
-                  <div className="text-2xl md:text-3xl font-extrabold text-white">{score}</div>
+                <div
+                  className={`text-right ${justScored ? "hud-score-pop" : ""}`}
+                  aria-label={`Σκορ ${score}`}
+                >
+                  <div className="text-xs uppercase tracking-wide text-slate-300">
+                    Σκορ
+                  </div>
+                  <div className="text-2xl md:text-3xl font-extrabold text-white">
+                    {score}
+                  </div>
                 </div>
 
                 {streak > 0 && !isPreGame && (
-                  <div className={`text-right ${justLostStreak ? "hud-streak-shake" : "hud-streak-pulse"}`}
-                       aria-label={`ΣΕΡΙ ${streak}`}>
-                    <div className="text-xs uppercase tracking-wide text-slate-300">ΣΕΡΙ</div>
+                  <div
+                    className={`text-right ${
+                      justLostStreak ? "hud-streak-shake" : "hud-streak-pulse"
+                    }`}
+                    aria-label={`ΣΕΡΙ ${streak}`}
+                  >
+                    <div className="text-xs uppercase tracking-wide text-slate-300">
+                      ΣΕΡΙ
+                    </div>
                     <div className="flex items-center justify-end gap-1">
                       <span className="text-base">🔥</span>
-                      <span className="text-lg font-bold text-white">{streak}</span>
+                      <span className="text-lg font-bold text-white">
+                        {streak}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -701,7 +794,10 @@ useEffect(() => {
 
           {/* Οδηγίες button here (start of game) */}
           <div className="mt-3 flex justify-center">
-            <button onClick={() => setShowHowTo(true)} className="pill bg-white text-black">
+            <button
+              onClick={() => setShowHowTo(true)}
+              className="pill bg-white text-black"
+            >
               🇬🇷 Οδηγίες
             </button>
           </div>
@@ -709,7 +805,9 @@ useEffect(() => {
 
         <div className="mt-5 max-w-md mx-auto">
           <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center">👤</span>
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
+              👤
+            </span>
             <input
               className="w-full rounded-xl bg-slate-900/60 px-3 py-3 pl-9 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
               placeholder="π.χ. Goat"
@@ -721,21 +819,20 @@ useEffect(() => {
           </div>
 
           <div className="mt-5 flex justify-center">
-                <button
-                  className="btn btn-accent px-6 py-3 text-base disabled:opacity-50"
-                  onClick={() => {
-                    const v = tempName.trim();
-                    setP1((s) => ({ ...s, name: v }));
-                    // persist to localStorage + notify parent BEFORE leaving NAME stage
-                    persistDisplayName(v);
-                    didPersistNameRef.current = true; // avoid double-persist from the effect
-                    setStage(STAGES.INTRO);
-                  }}
-                  disabled={!canProceed}
-                >
-                  Προχώρα
-                </button>
-
+            <button
+              className="btn btn-accent px-6 py-3 text-base disabled:opacity-50"
+              onClick={() => {
+                const v = tempName.trim();
+                setP1((s) => ({ ...s, name: v }));
+                // persist to localStorage + notify parent BEFORE leaving NAME stage
+                persistDisplayName(v);
+                didPersistNameRef.current = true; // avoid double-persist from the effect
+                setStage(STAGES.INTRO);
+              }}
+              disabled={!canProceed}
+            >
+              Προχώρα
+            </button>
           </div>
         </div>
       </StageCard>
@@ -754,7 +851,9 @@ useEffect(() => {
     return (
       <StageCard variant="howto">
         <div className="text-center">
-          <h1 className="font-display text-3xl font-extrabold">Ποδοσφαιρικό Κουίζ</h1>
+          <h1 className="font-display text-3xl font-extrabold">
+            Ποδοσφαιρικό Κουίζ
+          </h1>
           <p className="mt-2 text-slate-300 font-ui">
             Δες τις κατηγορίες και πάτα «Ας παίξουμε» για να ξεκινήσεις.
           </p>
@@ -763,15 +862,24 @@ useEffect(() => {
         <div className="mt-6 rounded-2xl border border-slate-800/60 bg-slate-900/40">
           <ul className="divide-y divide-slate-800/60">
             {INTRO_CATEGORIES.map((c) => (
-              <li key={c.category} className="px-4 py-3 flex items-center justify-between">
+              <li
+                key={c.category}
+                className="px-4 py-3 flex items-center justify-between"
+              >
                 <div className="min-w-0">
-                  <div className="font-display text-base font-semibold">{c.category}</div>
+                  <div className="font-display text-base font-semibold">
+                    {c.category}
+                  </div>
                   {c.count > 1 && (
-                    <div className="text-xs text-slate-400 mt-0.5">x{c.count} ερωτήσεις</div>
+                    <div className="text-xs text-slate-400 mt-0.5">
+                      x{c.count} ερωτήσεις
+                    </div>
                   )}
                 </div>
-                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset
-                                bg-fuchsia-600/20 text-fuchsia-300 ring-fuchsia-500/30">
+                <span
+                  className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset
+                                bg-fuchsia-600/20 text-fuchsia-300 ring-fuchsia-500/30"
+                >
                   {formatPoints(c.points)}
                 </span>
               </li>
@@ -785,8 +893,10 @@ useEffect(() => {
                   </div>
                   <div className="text-xs text-slate-400 mt-0.5">στοίχημα 0×–3×</div>
                 </div>
-                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset
-                                bg-fuchsia-600/20 text-fuchsia-300 ring-fuchsia-500/30">
+                <span
+                  className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset
+                                bg-fuchsia-600/20 text-fuchsia-300 ring-fuchsia-500/30"
+                >
                   0×–3×
                 </span>
               </li>
@@ -803,103 +913,189 @@ useEffect(() => {
     );
   }
 
-function CategoryStage() {
-  const points = q.points || 1;
+  function CategoryStage() {
+    const points = q.points || 1;
 
-  return (
-    <StageCard>
-      {/* Header: logo only to avoid duplicate category chips */}
-      <div className="flex items-center justify-between">
-        <Logo />
-        <div />
-      </div>
+    // Optional hidden override (host-only later)
+    const [categorySecondsOverride, setCategorySecondsOverride] = useState(null);
+    const categorySeconds =
+      categorySecondsOverride ?? DEFAULT_CATEGORY_SECONDS;
 
-      {/* Title */}
-      <h2 className="mt-4 text-center text-3xl font-extrabold tracking-wide font-display">
-        {q.category}
-      </h2>
+    const [catDeadline, setCatDeadline] = useState(() => {
+      const raw = Number(localStorage.getItem(CATEGORY_DEADLINE_KEY));
+      return Number.isFinite(raw) ? raw : null;
+    });
 
-      {/* Compact chips row: points (no-wrap) + small X2 chip */}
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-        <span
-          className="pill pill-nowrap"
-          aria-label={`${points} πόντοι`}
-          style={{
-            background: THEME.badgeGradient,
-            padding: ".45rem .9rem",
-            fontWeight: 800,
-          }}
-        >
-          ×{points}
-        </span>
+    // (Re)arm deadline on entering Category (or index change)
+    useEffect(() => {
+      if (stage !== STAGES.CATEGORY) return;
+      const now = Date.now();
+      let dl = Number(localStorage.getItem(CATEGORY_DEADLINE_KEY));
+      if (!Number.isFinite(dl) || dl <= now) {
+        dl = now + categorySeconds * 1000 + GRACE_MS;
+        try {
+          localStorage.setItem(CATEGORY_DEADLINE_KEY, String(dl));
+        } catch {}
+      }
+      setCatDeadline(dl);
+    }, [stage, index, categorySeconds]);
 
-        {/* X2 chip (hidden on final) */}
+    return (
+      <StageCard>
+        {/* Header: logo only to avoid duplicate category chips */}
+        <div className="flex items-center justify-between">
+          <Logo />
+          <div />
+        </div>
+
+        {/* Hidden override control for now */}
+        <div className="hidden mt-2">
+          <label className="text-xs text-slate-400 mr-2">Χρόνος κατηγορίας</label>
+          <select
+            className="rounded bg-slate-900/60 text-xs px-2 py-1"
+            value={categorySeconds}
+            onChange={(e) =>
+              setCategorySecondsOverride(Number(e.target.value))
+            }
+          >
+            <option value={10}>10s</option>
+            <option value={15}>15s</option>
+            <option value={20}>20s</option>
+            <option value={25}>25s</option>
+            <option value={30}>30s</option>
+          </select>
+        </div>
+
+        {/* Title */}
+        <h2 className="mt-4 text-center text-3xl font-extrabold tracking-wide font-display">
+          {q.category}
+        </h2>
+
+        {/* Compact chips row: points (no-wrap) + small X2 chip */}
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          <span
+            className="pill pill-nowrap"
+            aria-label={`${points} πόντοι`}
+            style={{
+              background: THEME.badgeGradient,
+              padding: ".45rem .9rem",
+              fontWeight: 800,
+            }}
+          >
+            ×{points}
+          </span>
+
+          {/* X2 chip (hidden on final) */}
+          {!isFinalIndex && (
+            <X2Control
+              side="p1"
+              armed={isX2ActiveFor("p1")}
+              available={x2.p1.available}
+              onArm={() => armX2("p1")}
+              isFinal={isFinalIndex}
+              stage={stage}
+              variant="chip" // compact chip presentation
+            />
+          )}
+        </div>
+
+        {/* Tiny helper caption (optional) */}
         {!isFinalIndex && (
-          <X2Control
-            side="p1"
-            armed={isX2ActiveFor("p1")}
-            available={x2.p1.available}
-            onArm={() => armX2("p1")}
-            isFinal={isFinalIndex}
-            stage={stage}
-            variant="chip" // compact chip presentation
+          <div className="mt-1 text-center text-xs text-slate-400 font-ui">
+            X2: μία φορά ανά παιχνίδι
+          </div>
+        )}
+
+        {/* Final betting UI on last question */}
+        {isFinalIndex && (
+          <div className="mt-6 rounded-2xl bg-slate-900/50 p-4">
+            <div className="mb-2 text-center text-sm text-slate-300 font-ui">
+              Τελικός — Τοποθέτησε το ποντάρισμά σου (0–3) και πάτησε Επόμενο.
+            </div>
+            <div className="max-w-2xl mx-auto flex justify-center">
+              <WagerControl
+                label={p1.name}
+                value={wager.p1}
+                onChange={(n) => setWager({ p1: clamp(n, 0, 3) })}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Category countdown */}
+        {catDeadline && (
+          <CountdownBar
+            totalMs={categorySeconds * 1000}
+            deadlineMs={catDeadline}
+            paused={anyModalOpen}
+            label="Χρόνος"
+            persistKey={CATEGORY_DEADLINE_KEY}
+            onDeadlineChange={setCatDeadline}
+            onExpire={() => {
+              try {
+                localStorage.removeItem(CATEGORY_DEADLINE_KEY);
+              } catch {}
+              setStage(STAGES.QUESTION);
+            }}
           />
         )}
-      </div>
 
-      {/* Tiny helper caption (optional) */}
-      {!isFinalIndex && (
-        <div className="mt-1 text-center text-xs text-slate-400 font-ui">
-          X2: μία φορά ανά παιχνίδι
+        <div className="mt-6 flex justify-center gap-3">
+          <NavButtons />
         </div>
-      )}
-
-      {/* Final betting UI on last question */}
-      {isFinalIndex && (
-        <div className="mt-6 rounded-2xl bg-slate-900/50 p-4">
-          <div className="mb-2 text-center text-sm text-slate-300 font-ui">
-            Τελικός — Τοποθέτησε το ποντάρισμά σου (0–3) και πάτησε Επόμενο.
-          </div>
-          <div className="max-w-2xl mx-auto flex justify-center">
-            <WagerControl
-              label={p1.name}
-              value={wager.p1}
-              onChange={(n) => setWager({ p1: clamp(n, 0, 3) })}
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="mt-6 flex justify-center gap-3">
-        <NavButtons />
-      </div>
-    </StageCard>
-  );
-}
-
-
+      </StageCard>
+    );
+  }
 
   function QuestionStage() {
     const mode = q.answerMode || "text";
+    const questionSeconds = q.time_seconds ?? DEFAULT_QUESTION_SECONDS;
 
     // Local state for CATALOG
     const [catPicked, setCatPicked] = useState(null);
     const [catText, setCatText] = useState("");
 
     // Local state for TEXT/NUMERIC
-    const [inputValue, setInputValue] = useState(() => playerAnswers[index] ?? "");
+    const [inputValue, setInputValue] = useState(
+      () => playerAnswers[index] ?? ""
+    );
 
     // Local state for SCORELINE
     const [scoreValue, setScoreValue] = useState(() =>
-      typeof playerAnswers[index] === "object" && playerAnswers[index] !== null
+      typeof playerAnswers[index] === "object" &&
+      playerAnswers[index] !== null
         ? playerAnswers[index]
         : { home: 0, away: 0 }
     );
 
+    // Media readiness (to start timer after media is ready; else fallback grace)
+    const [mediaReady, setMediaReady] = useState(false);
+
+    // When the question changes, determine if media is ready.
+    // If there's no media, it's ready instantly.
+    // If there IS media, we reset the flag and wait for the Media component's onReady.
+    useEffect(() => {
+      setMediaReady(false); // Reset on each question
+      if (q && !q.media) {
+        setMediaReady(true);
+      }
+    }, [q.id]); // Re-run when question changes
+
+    // Per-question absolute deadline
+    const [qDeadline, setQDeadline] = useState(() => {
+      const raw = Number(localStorage.getItem(questionDeadlineKey(index)));
+      // Only use stored deadline if it's in the future
+      if (Number.isFinite(raw) && raw > Date.now()) {
+        return raw;
+      }
+      return null;
+    });
+
     useEffect(() => {
       setInputValue(playerAnswers[index] ?? "");
       setScoreValue(
-        typeof playerAnswers[index] === "object" && playerAnswers[index] !== null
+        typeof playerAnswers[index] === "object" &&
+          playerAnswers[index] !== null
           ? playerAnswers[index]
           : { home: 0, away: 0 }
       );
@@ -907,6 +1103,28 @@ function CategoryStage() {
       setCatText("");
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [index]);
+
+    // (Re)arm question deadline when entering QUESTION. The timer will be PAUSED
+    // until the media is ready.
+    useEffect(() => {
+      if (stage !== STAGES.QUESTION) return;
+      const key = questionDeadlineKey(index);
+      const now = Date.now();
+
+      // Do we have a valid, future deadline stored?
+      const stored = Number(localStorage.getItem(key));
+      if (Number.isFinite(stored) && stored > now) {
+        setQDeadline(stored);
+        return; // Use stored deadline
+      }
+
+      // Otherwise, set a new deadline immediately.
+      const dl = now + questionSeconds * 1000 + GRACE_MS;
+      setQDeadline(dl);
+      try {
+        localStorage.setItem(key, String(dl));
+      } catch {}
+    }, [stage, index, questionSeconds]);
 
     // Replace the whole submitAndReveal with this version:
     const submitAndReveal = async (value) => {
@@ -927,15 +1145,17 @@ function CategoryStage() {
       // Persist what the player entered (even if blank)
       setPlayerAnswers((prev) => ({
         ...prev,
-        [index]: typeof stored === "object" && stored?.name ? stored.name : stored,
+        [index]:
+          typeof stored === "object" && stored?.name ? stored.name : stored,
       }));
 
       // Detect explicit "I don't know" for auto-marking modes and mark as wrong immediately
       const isAutoMode = mode !== "text";
       const isIDontKnow =
         (mode === "numeric" && (stored == null || stored.value == null)) ||
-        (mode === "scoreline" && (stored === "")) ||
-        (mode === "catalog" && (!stored || (typeof stored === "string" && stored.trim() === "")));
+        (mode === "scoreline" && stored === "") ||
+        (mode === "catalog" &&
+          (!stored || (typeof stored === "string" && stored.trim() === "")));
 
       if (isAutoMode && isIDontKnow) {
         if (!isFinalIndex) {
@@ -947,16 +1167,30 @@ function CategoryStage() {
           finalizeOutcomeP1("wrong");
         }
         setStage(STAGES.ANSWER);
+        // Clear deadline for this question (prevent re-fire on refresh)
+        try {
+          localStorage.removeItem(questionDeadlineKey(index));
+        } catch {}
+        setQDeadline(null);
         return; // skip validation
       }
 
       // Otherwise, keep existing behavior
       setStage(STAGES.ANSWER);
 
+      // Clear deadline now that answer stage is entered
+      try {
+        localStorage.removeItem(questionDeadlineKey(index));
+      } catch {}
+      setQDeadline(null);
+
       if (isAutoMode) {
         const result = await validateAny(q, stored?.name ? stored : stored);
         if (!isFinalIndex) {
-          setAnswered((a) => ({ ...a, [index]: result.correct ? "correct" : "wrong" }));
+          setAnswered((a) => ({
+            ...a,
+            [index]: result.correct ? "correct" : "wrong",
+          }));
           if (result.correct) awardToP1(1);
           else noAnswer();
         } else {
@@ -986,12 +1220,33 @@ function CategoryStage() {
           </div>
         </div>
 
-        <h3 className="mt-4 font-display text-2xl font-bold leading-snug">{q.prompt}</h3>
+        <h3 className="mt-4 font-display text-2xl font-bold leading-snug">
+          {q.prompt}
+        </h3>
 
         {/* Media */}
         <div className="mt-4">
-          <Media media={{ ...q.media, priority: true }} />
+          <Media
+            media={{ ...q.media, priority: true }}
+            onReady={() => setMediaReady(true)}
+          />
         </div>
+
+        {/* Question countdown */}
+        {qDeadline && (
+          <CountdownBar
+            totalMs={questionSeconds * 1000}
+            deadlineMs={qDeadline}
+            paused={anyModalOpen || !mediaReady} // ← Pause until media is ready
+            label="Χρόνος"
+            persistKey={questionDeadlineKey(index)}
+            onDeadlineChange={setQDeadline}
+            onExpire={() => {
+              // Auto-submit "Δεν γνωρίζω"
+              submitAndReveal("");
+            }}
+          />
+        )}
 
         {/* CATALOG */}
         {mode === "catalog" && (
@@ -1007,14 +1262,24 @@ function CategoryStage() {
                 type="button"
                 className="btn btn-accent"
                 onClick={() => {
-                  const toSubmit = (catPicked && catPicked.name) ? catPicked : catText;
+                  const toSubmit =
+                    catPicked && catPicked.name ? catPicked : catText;
                   submitAndReveal(toSubmit);
                 }}
-                disabled={!((catPicked && catPicked.name) || (catText && catText.trim().length > 0))}
+                disabled={
+                  !(
+                    (catPicked && catPicked.name) ||
+                    (catText && catText.trim().length > 0)
+                  )
+                }
               >
                 Υποβολή
               </button>
-              <button type="button" className="btn btn-neutral" onClick={() => submitAndReveal("")}>
+              <button
+                type="button"
+                className="btn btn-neutral"
+                onClick={() => submitAndReveal("")}
+              >
                 Δεν γνωρίζω
               </button>
             </div>
@@ -1026,10 +1291,18 @@ function CategoryStage() {
           <div className="mt-5 flex flex-col items-center gap-3">
             <ScoreInput value={scoreValue} onChange={(v) => setScoreValue(v)} />
             <div className="flex flex-wrap gap-3 justify-center">
-              <button type="button" className="btn btn-accent" onClick={() => submitAndReveal(scoreValue)}>
+              <button
+                type="button"
+                className="btn btn-accent"
+                onClick={() => submitAndReveal(scoreValue)}
+              >
                 Υποβολή σκορ
               </button>
-              <button type="button" className="btn btn-neutral" onClick={() => submitAndReveal("")}>
+              <button
+                type="button"
+                className="btn btn-neutral"
+                onClick={() => submitAndReveal("")}
+              >
                 Δεν γνωρίζω
               </button>
             </div>
@@ -1040,7 +1313,10 @@ function CategoryStage() {
         {mode === "numeric" && (
           <form
             className="mt-5 flex flex-col items-stretch gap-3"
-            onSubmit={(e) => { e.preventDefault(); submitAndReveal(inputValue); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitAndReveal(inputValue);
+            }}
           >
             <input
               type="number"
@@ -1051,8 +1327,14 @@ function CategoryStage() {
               onChange={(e) => setInputValue(e.target.value)}
             />
             <div className="flex flex-wrap gap-3 justify-center">
-              <button type="submit" className="btn btn-accent">Υποβολή</button>
-              <button type="button" className="btn btn-neutral" onClick={() => submitAndReveal("")}>
+              <button type="submit" className="btn btn-accent">
+                Υποβολή
+              </button>
+              <button
+                type="button"
+                className="btn btn-neutral"
+                onClick={() => submitAndReveal("")}
+              >
                 Δεν γνωρίζω
               </button>
             </div>
@@ -1063,7 +1345,10 @@ function CategoryStage() {
         {mode === "text" && (
           <form
             className="mt-5 flex flex-col items-stretch gap-3"
-            onSubmit={(e) => { e.preventDefault(); submitAndReveal(inputValue); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitAndReveal(inputValue);
+            }}
           >
             <input
               className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
@@ -1075,7 +1360,9 @@ function CategoryStage() {
               spellCheck={false}
             />
             <div className="flex flex-wrap gap-3 justify-center">
-              <button type="submit" className="btn btn-accent">Υποβολή</button>
+              <button type="submit" className="btn btn-accent">
+                Υποβολή
+              </button>
               <button
                 type="button"
                 className="btn btn-neutral"
@@ -1095,6 +1382,29 @@ function CategoryStage() {
     const mode = q.answerMode || "text";
     const rawUser = (playerAnswers && playerAnswers[index]) ?? "";
 
+    // NEW: Answer timer
+    const answerSeconds = DEFAULT_ANSWER_SECONDS;
+    const [answerDeadline, setAnswerDeadline] = useState(() => {
+      const raw = Number(localStorage.getItem(answerDeadlineKey(index)));
+      return Number.isFinite(raw) ? raw : null;
+    });
+
+    useEffect(() => {
+      if (stage !== STAGES.ANSWER || isFinalIndex) return;
+      const key = answerDeadlineKey(index);
+      const now = Date.now();
+      const stored = Number(localStorage.getItem(key));
+      if (Number.isFinite(stored) && stored > now) {
+        setAnswerDeadline(stored);
+        return;
+      }
+      const dl = now + answerSeconds * 1000 + GRACE_MS;
+      setAnswerDeadline(dl);
+      try {
+        localStorage.setItem(key, String(dl));
+      } catch {}
+    }, [stage, index, isFinalIndex, answerSeconds]);
+
     let userAnswerStr = "—";
     if (mode === "scoreline" && rawUser && typeof rawUser === "object") {
       userAnswerStr = `${rawUser.home ?? 0} - ${rawUser.away ?? 0}`;
@@ -1107,8 +1417,8 @@ function CategoryStage() {
     const outcomeKey = answered[index];
     const currentRow = RESULT_ROWS[index] || null;
     const isCorrect = outcomeKey === "correct" || outcomeKey === "final-correct";
-    const isWrong   = outcomeKey === "wrong"   || outcomeKey === "final-wrong";
-    const deltaPts  = currentRow ? currentRow.delta : 0;
+    const isWrong = outcomeKey === "wrong" || outcomeKey === "final-wrong";
+    const deltaPts = currentRow ? currentRow.delta : 0;
 
     return (
       <StageCard>
@@ -1123,7 +1433,7 @@ function CategoryStage() {
         <div className="text-center mt-4">
           <div className="font-display text-3xl font-extrabold">{q.answer}</div>
 
-          <div className="mt-3 font-ui text-sm">
+        <div className="mt-3 font-ui text-sm">
             <div
               className="inline-flex items-center gap-2 rounded-lg px-3 py-2"
               style={{
@@ -1141,18 +1451,41 @@ function CategoryStage() {
               {(isCorrect || isWrong) && (
                 <span
                   className="ml-2 rounded-full px-2.5 py-0.5 text-xs font-bold text-white"
-                  style={{ background: isCorrect ? THEME.positiveGrad : THEME.negativeGrad }}
+                  style={{
+                    background: isCorrect
+                      ? THEME.positiveGrad
+                      : THEME.negativeGrad,
+                  }}
                   title={isCorrect ? "Σωστό" : "Λάθος"}
                 >
-                  {isCorrect ? "✔" : "✘"} {deltaPts >= 0 ? `+${deltaPts}` : `${deltaPts}`}
+                  {isCorrect ? "✔" : "✘"}{" "}
+                  {deltaPts >= 0 ? `+${deltaPts}` : `${deltaPts}`}
                 </span>
               )}
             </div>
           </div>
 
-        {/* fact */}
-          {q.fact && <div className="mt-2 font-ui text-sm text-slate-300">ℹ️ {q.fact}</div>}
+          {/* fact */}
+          {q.fact && (
+            <div className="mt-2 font-ui text-sm text-slate-300">ℹ️ {q.fact}</div>
+          )}
         </div>
+
+        {/* Answer countdown (not on final) */}
+        {!isFinalIndex && answerDeadline && (
+          <CountdownBar
+            totalMs={answerSeconds * 1000}
+            deadlineMs={answerDeadline}
+            paused={anyModalOpen}
+            label="Επόμενη ερώτηση σε"
+            persistKey={answerDeadlineKey(index)}
+            onDeadlineChange={setAnswerDeadline}
+            onExpire={() => {
+              // Auto-progress to next question
+              next();
+            }}
+          />
+        )}
 
         <div className="mt-3 text-center text-xs text-slate-400 font-ui">
           {isX2ActiveFor("p1") && !isFinalIndex && <span>(×2 ενεργό)</span>}
@@ -1165,7 +1498,11 @@ function CategoryStage() {
               <button
                 className="btn text-white"
                 style={{ background: THEME.positiveGrad }}
-                onClick={() => { awardToP1(1); setAnswered((a) => ({ ...a, [index]: "correct" })); next(); }}
+                onClick={() => {
+                  awardToP1(1);
+                  setAnswered((a) => ({ ...a, [index]: "correct" }));
+                  next();
+                }}
                 title="Σωστό"
               >
                 Σωστό
@@ -1173,7 +1510,11 @@ function CategoryStage() {
               <button
                 className="btn text-white"
                 style={{ background: THEME.negativeGrad }}
-                onClick={() => { noAnswer(); setAnswered((a) => ({ ...a, [index]: "wrong" })); next(); }}
+                onClick={() => {
+                  noAnswer();
+                  setAnswered((a) => ({ ...a, [index]: "wrong" }));
+                  next();
+                }}
                 title="Λάθος / Καμία απάντηση — μηδενίζει το σερί"
               >
                 Λάθος / Καμία απάντηση
@@ -1188,13 +1529,18 @@ function CategoryStage() {
             <div className="mb-2 text-sm text-slate-300">
               Τελικός — Απονέμονται πόντοι βάσει πονταρίσματος
             </div>
-            <div className="text-xs text-slate-400 mb-3">Το Χ2 δεν ισχύει στον Τελικό.</div>
+            <div className="text-xs text-slate-400 mb-3">
+              Το Χ2 δεν ισχύει στον Τελικό.
+            </div>
             <div className="space-y-2">
               <div className="text-sm text-slate-300">{p1.name}</div>
               <div className="flex flex-wrap justify-center gap-2">
                 <button
                   disabled={finalResolved.p1}
-                  onClick={() => { finalizeOutcomeP1("correct"); next(); }}
+                  onClick={() => {
+                    finalizeOutcomeP1("correct");
+                    next();
+                  }}
                   className="btn text-white disabled:opacity-50"
                   style={{ background: THEME.positiveGrad }}
                 >
@@ -1202,13 +1548,18 @@ function CategoryStage() {
                 </button>
                 <button
                   disabled={finalResolved.p1}
-                  onClick={() => { finalizeOutcomeP1("wrong"); next(); }}
+                  onClick={() => {
+                    finalizeOutcomeP1("wrong");
+                    next();
+                  }}
                   className="btn text-white disabled:opacity-50"
                   style={{ background: THEME.negativeGrad }}
                 >
                   Λάθος −{wager.p1}
                 </button>
-                {finalResolved.p1 && <span className="text-xs text-emerald-300">Ολοκληρώθηκε ✔</span>}
+                {finalResolved.p1 && (
+                  <span className="text-xs text-emerald-300">Ολοκληρώθηκε ✔</span>
+                )}
               </div>
             </div>
           </div>
@@ -1229,14 +1580,17 @@ function CategoryStage() {
           category: r.category,
           points: r.base ?? 0,
           isFinal: r.isFinal,
-          correct: r.outcome === "Σωστό" ? true : r.outcome === "Λάθος" ? false : null,
+          correct:
+            r.outcome === "Σωστό" ? true : r.outcome === "Λάθος" ? false : null,
           x2: !!r.x2Applied,
           answerText:
             typeof r.userAnswer === "object" && r.userAnswer
-              ? (r.userAnswer.home != null && r.userAnswer.away != null)
+              ? r.userAnswer.home != null && r.userAnswer.away != null
                 ? `${r.userAnswer.home} - ${r.userAnswer.away}`
-                : (r.userAnswer.value != null ? String(r.userAnswer.value) : "")
-              : (r.userAnswer || ""),
+                : r.userAnswer.value != null
+                ? String(r.userAnswer.value)
+                : ""
+              : r.userAnswer || "",
           streakPoints: !r.isFinal && r.bonus ? 1 : 0,
           delta: r.delta,
           total: r.running,
@@ -1244,119 +1598,183 @@ function CategoryStage() {
       [RESULT_ROWS]
     );
 
-      return (
-        <>
-          <ResultsTableResponsive
-            rows={rows}
-            title="Αποτελέσματα"
-            playerName={p1.name}
-            totalScore={p1.score}
-            maxStreak={p1.maxStreak}
-            onReset={resetGame}
-            lang="el"
-          />
-          <div className="mt-4 flex justify-center">
-            <button
-              type="button"
-              className="btn btn-accent px-6 py-3"
-              onClick={() => onOpenOverlayRequest && onOpenOverlayRequest()}
-            >
-              Δες Κατάταξη
-            </button>
-          </div>
-        </>
-      );
-
-  }
-
-function X2Control({
-  label,
-  side,
-  available,
-  armed,
-  onArm,
-  isFinal,
-  stage,
-  variant = "card",
-}) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const clickable = available && !isFinal && stage === STAGES.CATEGORY && !armed;
-
-  function handlePrimaryClick() {
-    if (!clickable) return;
-    setConfirmOpen(true);
-  }
-  function confirmArm() {
-    setConfirmOpen(false);
-    onArm();
-  }
-
-  const statusText = (() => {
-    if (isFinal) return "Δεν επιτρέπεται στον Τελικό.";
-    if (armed) return "Χ2 ενεργό για αυτή την ερώτηση.";
-    if (!available) return "Χ2 χρησιμοποιήθηκε.";
-    return "Μπορεί να χρησιμοποιηθεί μόνο μία φορά.";
-  })();
-
-  // --- New compact CHIP variant ---
-  if (variant === "chip") {
-    const chipText = isFinal
-      ? "Χ2 δεν επιτρέπεται"
-      : armed
-      ? "⚡ Χ2 ενεργό"
-      : available
-      ? "⚡ Ενεργοποίηση Χ2"
-      : "Χ2 χρησιμοποιήθηκε";
-
-    const activeStyle = {
-      background: THEME.badgeGradient,
-      color: "#fff",
-      padding: ".45rem .9rem",
-      fontWeight: 800,
-      cursor: clickable ? "pointer" : "default",
-      opacity: clickable ? 1 : 0.75,
-    };
-    const mutedStyle = {
-      background: "rgba(148,163,184,0.18)",
-      border: "1px solid rgba(255,255,255,0.16)",
-      color: "rgba(255,255,255,0.85)",
-      padding: ".45rem .9rem",
-      fontWeight: 800,
-      opacity: 0.8,
-      cursor: "default",
-    };
-
-    const style = clickable || armed ? activeStyle : mutedStyle;
-
     return (
-      <div className="relative inline-block">
+      <>
+        <ResultsTableResponsive
+          rows={rows}
+          title="Αποτελέσματα"
+          playerName={p1.name}
+          totalScore={p1.score}
+          maxStreak={p1.maxStreak}
+          onReset={resetGame}
+          lang="el"
+        />
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            className="btn btn-accent px-6 py-3"
+            onClick={() => onOpenOverlayRequest && onOpenOverlayRequest()}
+          >
+            Δες Κατάταξη
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  function X2Control({
+    label,
+    side,
+    available,
+    armed,
+    onArm,
+    isFinal,
+    stage,
+    variant = "card",
+  }) {
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const clickable =
+      available && !isFinal && stage === STAGES.CATEGORY && !armed;
+
+    function handlePrimaryClick() {
+      if (!clickable) return;
+      setConfirmOpen(true);
+    }
+    function confirmArm() {
+      setConfirmOpen(false);
+      onArm();
+    }
+
+    const statusText = (() => {
+      if (isFinal) return "Δεν επιτρέπεται στον Τελικό.";
+      if (armed) return "Χ2 ενεργό για αυτή την ερώτηση.";
+      if (!available) return "Χ2 χρησιμοποιήθηκε.";
+      return "Μπορεί να χρησιμοποιηθεί μόνο μία φορά.";
+    })();
+
+    // --- New compact CHIP variant ---
+    if (variant === "chip") {
+      const chipText = isFinal
+        ? "Χ2 δεν επιτρέπεται"
+        : armed
+        ? "⚡ Χ2 ενεργό"
+        : available
+        ? "⚡ Ενεργοποίηση Χ2"
+        : "Χ2 χρησιμοποιήθηκε";
+
+      const activeStyle = {
+        background: THEME.badgeGradient,
+        color: "#fff",
+        padding: ".45rem .9rem",
+        fontWeight: 800,
+        cursor: clickable ? "pointer" : "default",
+        opacity: clickable ? 1 : 0.75,
+      };
+      const mutedStyle = {
+        background: "rgba(148,163,184,0.18)",
+        border: "1px solid rgba(255,255,255,0.16)",
+        color: "rgba(255,255,255,0.85)",
+        padding: ".45rem .9rem",
+        fontWeight: 800,
+        opacity: 0.8,
+        cursor: "default",
+      };
+
+      const style = clickable || armed ? activeStyle : mutedStyle;
+
+      return (
+        <div className="relative inline-block">
+          <button
+            type="button"
+            className="pill select-none"
+            style={style}
+            onClick={handlePrimaryClick}
+            disabled={!clickable}
+            aria-disabled={!clickable}
+            aria-label="Ενεργοποίηση Χ2"
+          >
+            {chipText}
+          </button>
+
+          {/* Inline confirm popover */}
+          {confirmOpen && (
+            <div
+              className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl bg-slate-900/95 ring-1 ring-white/10 p-3 shadow-xl z-10"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Επιβεβαίωση Χ2"
+            >
+              <div className="text-sm text-slate-200 font-semibold mb-1">
+                Ενεργοποίηση Χ2;
+              </div>
+              <div className="text-xs text-slate-400 mb-3">
+                Θα διπλασιάσει τους πόντους αυτής της ερώτησης. Συνέχεια;
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="btn btn-neutral"
+                  onClick={() => setConfirmOpen(false)}
+                >
+                  Άκυρο
+                </button>
+                <button className="btn btn-accent" onClick={confirmArm}>
+                  Ναι, ενεργοποίηση
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --- Original CARD variant (kept for backward-compat) ---
+    return (
+      <div className="card font-ui mx-auto text-center relative">
+        {label ? (
+          <div className="mb-3 text-sm text-slate-300">{label}</div>
+        ) : null}
+
         <button
-          type="button"
-          className="pill select-none"
-          style={style}
+          className={[
+            "rounded-full px-5 py-2.5 text-white font-extrabold shadow transition",
+            clickable
+              ? "hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-pink-400"
+              : "opacity-60 cursor-not-allowed",
+          ].join(" ")}
+          style={{ background: THEME.badgeGradient }}
           onClick={handlePrimaryClick}
           disabled={!clickable}
           aria-disabled={!clickable}
           aria-label="Ενεργοποίηση Χ2"
         >
-          {chipText}
+          {armed ? "Χ2 ενεργό" : "⚡ Ενεργοποίηση Χ2"}
         </button>
 
-        {/* Inline confirm popover */}
+        <div className="mt-2 text-xs text-slate-400">{statusText}</div>
+
         {confirmOpen && (
           <div
-            className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl bg-slate-900/95 ring-1 ring-white/10 p-3 shadow-xl z-10"
+            className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl bg-slate-900/95 ring-1 ring-white/10 p-3 shadow-xl"
             role="dialog"
             aria-modal="true"
             aria-label="Επιβεβαίωση Χ2"
           >
-            <div className="text-sm text-slate-200 font-semibold mb-1">Ενεργοποίηση Χ2;</div>
+            <div className="text-sm text-slate-200 font-semibold mb-1">
+              Ενεργοποίηση Χ2;
+            </div>
             <div className="text-xs text-slate-400 mb-3">
               Θα διπλασιάσει τους πόντους αυτής της ερώτησης. Συνέχεια;
             </div>
             <div className="flex justify-end gap-2">
-              <button className="btn btn-neutral" onClick={() => setConfirmOpen(false)}>Άκυρο</button>
-              <button className="btn btn-accent" onClick={confirmArm}>Ναι, ενεργοποίηση</button>
+              <button
+                className="btn btn-neutral"
+                onClick={() => setConfirmOpen(false)}
+              >
+                Άκυρο
+              </button>
+              <button className="btn btn-accent" onClick={confirmArm}>
+                Ναι, ενεργοποίηση
+              </button>
             </div>
           </div>
         )}
@@ -1364,61 +1782,23 @@ function X2Control({
     );
   }
 
-  // --- Original CARD variant (kept for backward-compat) ---
-  return (
-    <div className="card font-ui mx-auto text-center relative">
-      {label ? <div className="mb-3 text-sm text-slate-300">{label}</div> : null}
-
-      <button
-        className={[
-          "rounded-full px-5 py-2.5 text-white font-extrabold shadow transition",
-          clickable
-            ? "hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-pink-400"
-            : "opacity-60 cursor-not-allowed",
-        ].join(" ")}
-        style={{ background: THEME.badgeGradient }}
-        onClick={handlePrimaryClick}
-        disabled={!clickable}
-        aria-disabled={!clickable}
-        aria-label="Ενεργοποίηση Χ2"
-      >
-        {armed ? "Χ2 ενεργό" : "⚡ Ενεργοποίηση Χ2"}
-      </button>
-
-      <div className="mt-2 text-xs text-slate-400">{statusText}</div>
-
-      {confirmOpen && (
-        <div
-          className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl bg-slate-900/95 ring-1 ring-white/10 p-3 shadow-xl"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Επιβεβαίωση Χ2"
-        >
-          <div className="text-sm text-slate-200 font-semibold mb-1">Ενεργοποίηση Χ2;</div>
-          <div className="text-xs text-slate-400 mb-3">
-            Θα διπλασιάσει τους πόντους αυτής της ερώτησης. Συνέχεια;
-          </div>
-          <div className="flex justify-end gap-2">
-            <button className="btn btn-neutral" onClick={() => setConfirmOpen(false)}>Άκυρο</button>
-            <button className="btn btn-accent" onClick={confirmArm}>Ναι, ενεργοποίηση</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
   function WagerControl({ label, value, onChange }) {
     return (
       <div className="card font-ui text-center flex flex-col items-center">
         <div className="mb-3 text-sm text-slate-300">{label}</div>
         <div className="flex items-center gap-2 justify-center">
-          <button className="btn btn-neutral" onClick={() => onChange(value - 1)}>−</button>
-          <div className="pill text-white text-xl px-5 py-2" style={{ background: THEME.badgeGradient }}>
+          <button className="btn btn-neutral" onClick={() => onChange(value - 1)}>
+            −
+          </button>
+          <div
+            className="pill text-white text-xl px-5 py-2"
+            style={{ background: THEME.badgeGradient }}
+          >
             {value}
           </div>
-          <button className="btn btn-neutral" onClick={() => onChange(value + 1)}>+</button>
+          <button className="btn btn-neutral" onClick={() => onChange(value + 1)}>
+            +
+          </button>
         </div>
         <div className="mt-2 text-xs text-slate-400">Ποντάρισμα 0–3 πόντοι</div>
       </div>
@@ -1429,7 +1809,9 @@ function X2Control({
   function NavButtons() {
     const nextDisabled =
       stage === STAGES.ANSWER
-        ? (!isFinalIndex ? !answered[index] : !finalResolved.p1)
+        ? !isFinalIndex
+          ? !answered[index]
+          : !finalResolved.p1
         : false;
 
     const isFinalAnswerStage = stage === STAGES.ANSWER && isFinalIndex;
@@ -1447,7 +1829,9 @@ function X2Control({
             }}
             className="btn btn-accent disabled:opacity-50"
             disabled={nextDisabled}
-            title={nextDisabled ? "Καταχώρισε πρώτα την απάντηση" : "Προβολή κατάταξης"}
+            title={
+              nextDisabled ? "Καταχώρισε πρώτα την απάντηση" : "Προβολή κατάταξης"
+            }
           >
             Δες κατάταξη →
           </button>
@@ -1493,8 +1877,7 @@ function X2Control({
         "Final: +bet on correct"
       );
       console.assert(applyFinal(10, 2, "wrong") === 8, "Final: -bet on wrong");
-      const streakBonus = (prev, same) =>
-        (same ? prev + 1 : 1) >= 3 ? 1 : 0;
+      const streakBonus = (prev, same) => ((same ? prev + 1 : 1) >= 3 ? 1 : 0);
       console.assert(
         streakBonus(2, true) === 1 && streakBonus(1, true) === 0,
         "Streak bonus from 3rd correct"
@@ -1526,7 +1909,9 @@ function X2Control({
 
         {/* Modals */}
         {showHowTo && <HowToModal onClose={() => setShowHowTo(false)} />}
-        {showFinalHowTo && <FinalHowToModal onClose={() => setShowFinalHowTo(false)} />}
+        {showFinalHowTo && (
+          <FinalHowToModal onClose={() => setShowFinalHowTo(false)} />
+        )}
 
         {/* Stages */}
         {stage === STAGES.NAME && !p1.name && <NameStage />}
@@ -1573,7 +1958,9 @@ function stageLabel(stage) {
 /* ——— HowTo (generic) ——— */
 function HowToModal({ onClose, totalQuestions = 9 }) {
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -1609,14 +1996,16 @@ function HowToModal({ onClose, totalQuestions = 9 }) {
 /* ——— Final-question reminder ——— */
 function FinalHowToModal({ onClose }) {
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-    <div className="fixed inset-0 bg-black/60" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/60" onClick={onClose} />
       <div className="min-h-full flex items-start sm:items-center justify-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <div className="relative w-full max-w-[640px] font-ui rounded-2xl shadow-xl ring-1 ring-white/10 bg-[var(--howto-bg)] text-slate-100 flex flex-col overflow-hidden">
           <div className="sticky top-0 z-10 px-6 py-4 bg-[var(--howto-bg)] backdrop-blur-sm rounded-t-2xl flex items-center justify-between border-b border-white/10">
