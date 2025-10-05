@@ -7,7 +7,7 @@ export const questions = [
     category: "Εθνικότητες",
     points: 1,
     lang: "el",
-    prompt: "Ποια είναι η 2η εθνικότητα του Bukayo Saka;",
+    prompt: "Ποια είναι η 2η εθνικoτητα του Bukayo Saka;",
     type: "open",
 
     // NEW: per-question time (seconds)
