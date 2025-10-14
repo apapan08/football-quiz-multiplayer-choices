@@ -1,8 +1,8 @@
-// src/pages/Landing.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import supabase from '../lib/supabaseClient';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
+import { Logo } from "../App.jsx";
 import { generateUniqueRoomCode } from '../lib/roomCode';
 import { QUIZ_ID } from '../lib/quizVersion';
 
@@ -44,7 +44,6 @@ export default function Landing() {
     if (!c || c.length !== 5) { alert('Έγκυρος κωδικός 5 γραμμάτων'); return; }
     if (!name.trim()) { alert('Βάλε ένα όνομα εμφάνισης'); return; }
 
-    // Prefer current version, but gracefully fall back for legacy rooms
     let { data: room, error } = await supabase.from('rooms')
       .select('*').eq('code', c).eq('quiz_id', QUIZ_ID).maybeSingle();
     if (!room) {
@@ -64,17 +63,14 @@ export default function Landing() {
   const canJoin = ready && !!name.trim() && (code || '').trim().length === 5;
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-6"
-      style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
-    >
-      <div className="card w-full max-w-3xl text-slate-100">
-        <h1 className="font-display text-3xl md:text-4xl font-extrabold text-center">Ποδοσφαιρικό Κουίζ</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
+      <div className="w-full max-w-md space-y-8 text-center">
+        <Logo className="mx-auto h-48 w-auto" />
 
-        <div className="mt-6 space-y-3">
-          <label className="block text-sm text-slate-300">Όνομα εμφάνισης</label>
+        <div>
+          <label className="block text-base font-medium text-text">Το όνομα σου</label>
           <input
-            className="w-full rounded-2xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+            className="mt-1 w-full rounded-lg px-4 py-3 outline-none bg-slate-100 text-text border border-slate-300 focus:ring-2 focus:ring-primary text-lg"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="π.χ. Goat"
@@ -84,30 +80,37 @@ export default function Landing() {
           />
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row items-stretch gap-3">
-          <button className="btn btn-accent w-full sm:w-auto" onClick={createRoom} disabled={!canCreate}>
-            Δημιούργησε Δωμάτιο
-          </button>
+        <div className="flex flex-col space-y-4">
+          <a href="/solo" className="btn btn-accent text-xl font-bold py-4 px-8 inline-block">
+            Παίξε μόνος
+          </a>
 
-          <div className="flex-1 min-w-0">
-            <input
-              className="w-full rounded-2xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400 uppercase"
-              placeholder="ΚΩΔΙΚΟΣ (π.χ. ABCDE)"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 5))}
-              maxLength={5}
-              autoComplete="off"
-              spellCheck={false}
-            />
+          <div className="relative flex py-5 items-center">
+            <div className="flex-grow border-t border-slate-300"></div>
+            <span className="flex-shrink mx-4 text-slate-500 text-sm">ή παίξε με φίλους</span>
+            <div className="flex-grow border-t border-slate-300"></div>
           </div>
 
-          <button className="btn btn-neutral w-full sm:w-auto shrink-0 whitespace-nowrap" onClick={joinRoom} disabled={!canJoin}>
-            Μπες
-          </button>
-        </div>
+          <div className="bg-white p-6 rounded-lg shadow-lg space-y-6">
+            <button className="btn btn-neutral w-full text-lg py-3" onClick={createRoom} disabled={!canCreate}>
+              Δημιούργησε δωμάτιο
+            </button>
 
-        <div className="mt-6 text-center text-sm text-slate-300">
-          Θες μόνος σου; <a className="underline" href="/solo">Παίξε μόνος</a>
+            <div className="space-y-2">
+              <input
+                className="w-full rounded-lg px-4 py-3 outline-none uppercase bg-slate-100 text-text border border-slate-300 focus:ring-2 focus:ring-primary text-lg"
+                placeholder="ΚΩΔΙΚΟΣ (π.χ. ABCDE)"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 5))}
+                maxLength={5}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button className="btn w-full text-lg py-3" style={{ backgroundColor: '#f97316', color: 'white' }} onClick={joinRoom} disabled={!canJoin}>
+                Μπες με κωδικό
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

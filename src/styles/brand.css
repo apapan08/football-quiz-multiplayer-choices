@@ -1,42 +1,58 @@
 /* src/styles/brand.css */
-:root{
-  --brand-grad-from:#223B57;
-  --brand-grad-to:#2F4E73;
-  --brand-accent:#F11467;
-  --brand-card:rgba(17,24,39,0.55);
-  --brand-border:rgba(255,255,255,.08);
+:root {
+  --primary-color: #00b45a; /* A vibrant green, like a football pitch */
+  --secondary-color: #1a1a1a; /* A dark, charcoal grey */
+  --accent-color: #ff8c00; /* A bright, energetic orange */
+  --text-color: #ffffff; /* White text for high contrast */
+  --text-color-secondary: #b3b3b3; /* A lighter grey for secondary text */
+  --background-color: #111827; /* A deep, dark background */
+  --surface-color: #1f2937; /* A slightly lighter surface color for cards and components */
+  --border-color: rgba(255, 255, 255, 0.1); /* A subtle white border */
 }
 
 /* Base button */
-.btn{
-  border-radius: 1rem;               /* ~rounded-2xl */
-  padding: .6rem 1.25rem;            /* ~px-5 py-2 */
+.btn {
+  border-radius: 0.5rem; /* A slightly less rounded button */
+  padding: 0.75rem 1.5rem;
   font-weight: 600;
-  box-shadow: 0 8px 20px rgba(0,0,0,.25);
-  transition: filter .15s ease, background .15s ease, transform .06s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease-in-out;
+  border: none;
 }
 
-/* Neutral button — like “Δεν γνωρίζω” */
-.btn-neutral{
-  background: rgba(148,163,184,0.15);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,.16);
+/* Neutral button — for secondary actions */
+.btn-neutral {
+  background: var(--surface-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
 }
-.btn-neutral:hover{ background: rgba(148,163,184,0.25); }
 
-/* Accent (if you want to keep for “Start game”) */
-.btn-accent{
-  background: var(--brand-accent);
+.btn-neutral:hover {
+  background: #2a2a2a;
+}
+
+/* Accent button — for primary actions */
+.btn-accent {
+  background: var(--primary-color);
   color: #fff;
 }
-.btn-accent:hover{ filter: brightness(1.06); }
+
+.btn-accent:hover {
+  background: #00a354;
+}
 
 /* Cards/pills used on these pages */
-.card{
-  background: var(--brand-card);
-  border:1px solid var(--brand-border);
-  border-radius: 1.5rem;
-  padding:1.5rem;
-  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+.card {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 1.5rem;
 }
-.pill{ border-radius:999px; padding:.25rem .6rem; font-weight:700; }
+
+.pill {
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-weight: 700;
+  background: var(--primary-color);
+  color: #fff;
+}

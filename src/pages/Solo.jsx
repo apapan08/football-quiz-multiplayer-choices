@@ -1,5 +1,6 @@
 // src/pages/Solo.jsx
 import React, { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import QuizPrototype from "../App.jsx";
 import ResultsOverlayV2 from "../components/ResultsOverlayV2.jsx";
 import { useSupabaseAuth } from "../hooks/useSupabaseAuth";
@@ -17,6 +18,7 @@ function getDisplayName(fallback) {
 }
 
 export default function Solo() {
+  const nav = useNavigate();
   const { ready, userId, name, setName } = useSupabaseAuth();
   const [showOverlay, setShowOverlay] = useState(false);
   const [overlayView, setOverlayView] = useState("global");
@@ -99,6 +101,7 @@ export default function Solo() {
         }}
         startStage="name"
         onNameSaved={setName}          // start from Name stage
+        onNavigateHome={() => nav('/')}
       />
 
       {showOverlay && (

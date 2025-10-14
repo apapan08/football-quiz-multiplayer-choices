@@ -241,12 +241,12 @@ export default function ResultsOverlayV2({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-md sm:max-w-2xl h-[90vh] bg-slate-900/95 ring-1 ring-white/10 rounded-2xl overflow-hidden flex flex-col shadow-xl">
+      <div className="absolute inset-0 bg-black/80" onClick={onClose} />
+      <div className="relative w-full max-w-md sm:max-w-2xl h-[90vh] rounded-2xl overflow-hidden flex flex-col shadow-xl" style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)' }}>
         {/* header */}
-        <div className="px-6 py-4 border-b border-white/10 flex flex-col gap-1">
+        <div className="px-6 py-4 flex flex-col gap-1" style={{ borderBottom: '1px solid var(--border-color)' }}>
           <div className="flex items-center justify-between">
-            <div className="font-display text-2xl font-extrabold text-white">
+            <div className="font-display text-2xl font-extrabold" style={{ color: 'var(--text-color)' }}>
               {internalView === "room" ? "Κατάταξη Δωματίου" : "Συνολική Κατάταξη"}
             </div>
             <button onClick={onClose} className="btn btn-accent px-3 py-1.5 rounded-xl" aria-label="Close">
@@ -254,7 +254,7 @@ export default function ResultsOverlayV2({
             </button>
           </div>
 
-          <div className="text-sm text-slate-300" aria-live="polite">
+          <div className="text-sm" style={{ color: 'var(--text-color-secondary)' }} aria-live="polite">
             {internalView === "room" ? statusText : <>Πρώτοι 50</>}
           </div>
         </div>
@@ -262,35 +262,35 @@ export default function ResultsOverlayV2({
         {/* body */}
         <div className="flex-1 overflow-y-auto px-4 py-3">
           {internalView === "room" && (
-            <div className="overflow-hidden rounded-xl ring-1 ring-white/10">
-              <table className="min-w-full text-sm text-slate-200">
+            <div className="overflow-hidden rounded-xl" style={{ border: '1px solid var(--border-color)' }}>
+              <table className="min-w-full text-sm" style={{ color: 'var(--text-color)' }}>
                 <thead>
                   <tr>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">#</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Όνομα</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Χρόνος</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Σκορ</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>#</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Όνομα</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Χρόνος</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Σκορ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
-                    <tr key={r.user_id} className={r.user_id === youId ? "bg-lime-400/25" : undefined}>
-                      <td className="px-4 py-2 border-t border-white/10">{i + 1}</td>
-                      <td className="px-4 py-2 border-t border-white/10">
+                    <tr key={r.user_id} style={{ backgroundColor: r.user_id === youId ? 'rgba(0, 180, 90, 0.25)' : undefined }}>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{i + 1}</td>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>
                         <span className="font-semibold">{r.name}</span>
                         {r.user_id === youId && (
-                          <span className="ml-2 text-[10px] font-extrabold bg-white text-black rounded px-1.5 py-0.5 align-middle">
+                          <span className="ml-2 text-[10px] font-extrabold rounded px-1.5 py-0.5 align-middle" style={{ backgroundColor: 'var(--primary-color)', color: '#fff' }}>
                             YOU
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2 border-t border-white/10">{fmtTime(r.duration_seconds)}</td>
-                      <td className="px-4 py-2 border-t border-white/10">{r.score}</td>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{fmtTime(r.duration_seconds)}</td>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{r.score}</td>
                     </tr>
                   ))}
                   {rows.length === 0 && (
                     <tr>
-                      <td className="px-4 py-2 border-t border-white/10" colSpan={4}>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }} colSpan={4}>
                         Περιμένουμε αποτελέσματα…
                       </td>
                     </tr>
@@ -301,35 +301,35 @@ export default function ResultsOverlayV2({
           )}
 
           {internalView === "global" && (
-            <div className="overflow-hidden rounded-xl ring-1 ring-white/10">
-              <table className="min-w-full text-sm text-slate-200">
+            <div className="overflow-hidden rounded-xl" style={{ border: '1px solid var(--border-color)' }}>
+              <table className="min-w-full text-sm" style={{ color: 'var(--text-color)' }}>
                 <thead>
                   <tr>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">#</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Όνομα</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Χρόνος</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2 bg-white/5">Σκορ</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>#</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Όνομα</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Χρόνος</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Σκορ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {top.map((r, i) => (
-                    <tr key={`${r.user_id}-${r.created_at}-${i}`} className={r.user_id === youId ? "bg-lime-400/25" : undefined}>
-                      <td className="px-4 py-2 border-t border-white/10">{i + 1}</td>
-                      <td className="px-4 py-2 border-t border-white/10">
+                    <tr key={`${r.user_id}-${r.created_at}-${i}`} style={{ backgroundColor: r.user_id === youId ? 'rgba(0, 180, 90, 0.25)' : undefined }}>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{i + 1}</td>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>
                         <span className="font-semibold">{r.name}</span>
                         {r.user_id === youId && (
-                          <span className="ml-2 text-[10px] font-extrabold bg-white text-black rounded px-1.5 py-0.5 align-middle">
+                          <span className="ml-2 text-[10px] font-extrabold rounded px-1.5 py-0.5 align-middle" style={{ backgroundColor: 'var(--primary-color)', color: '#fff' }}>
                             YOU
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2 border-t border-white/10">{fmtTime(r.duration_seconds)}</td>
-                      <td className="px-4 py-2 border-t border-white/10">{r.score}</td>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{fmtTime(r.duration_seconds)}</td>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{r.score}</td>
                     </tr>
                   ))}
                   {top.length === 0 && (
                     <tr>
-                      <td className="px-4 py-2 border-t border-white/10" colSpan={4}>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }} colSpan={4}>
                         Δεν υπάρχουν συμμετοχές ακόμη
                       </td>
                     </tr>
@@ -342,7 +342,7 @@ export default function ResultsOverlayV2({
 
         {/* footer: show switcher only if we have a room (multiplayer) */}
         {!soloMode && (
-          <div className="px-6 py-4 border-t border-white/10 flex flex-col gap-2">
+          <div className="px-6 py-4 flex flex-col gap-2" style={{ borderTop: '1px solid var(--border-color)' }}>
             {internalView === "room" ? (
               <button className="btn btn-accent w-full" onClick={() => setView("global")}>
                 Συνολική Κατάταξη

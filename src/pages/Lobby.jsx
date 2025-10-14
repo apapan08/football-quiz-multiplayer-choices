@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import supabase from '../lib/supabaseClient';
 import useRoomChannel from '../hooks/useRoomChannel';
+import { Logo } from "../App.jsx";
 import { QUIZ_ID } from '../lib/quizVersion';
 
 export default function Lobby() {
@@ -56,7 +57,7 @@ export default function Lobby() {
         {
           room_id: data.id,
           user_id: userId,
-          name: (name || 'Player').trim(),
+          name: (name || 'Παίκτης').trim(),
           is_host: data.created_by === userId,
         },
         { onConflict: 'room_id,user_id' }
@@ -104,7 +105,7 @@ export default function Lobby() {
   const { roster, broadcastStart } = useRoomChannel({
     code,
     user_id: userId,
-    name: name || 'Player',
+    name: name || 'Παίκτης',
     is_host: isHost,
     onStart: ({ startedAt }) => { nav(`/play/${code}?t=${startedAt}`); },
   });
@@ -135,48 +136,48 @@ export default function Lobby() {
   }
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}>
-      <div className="card w-full max-w-2xl text-slate-100">
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-2xl font-extrabold">Lobby</h1>
-          <div className="pill bg-white/10">Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span></div>
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background text-text">
+      <div className="w-full max-w-2xl mx-auto">
+        <Logo className="mx-auto h-32 w-auto mb-8" />
 
-        <div className="mt-4 text-sm text-slate-300 space-y-2">
-          <div>Στείλε αυτό το link στους φίλους σου:</div>
-
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input className="flex-1 min-w-0 rounded-2xl bg-slate-900/60 px-4 py-2.5 text-slate-200 outline-none ring-1 ring-white/10" readOnly value={shareUrl} />
-            <button className="btn btn-neutral w-full sm:w-auto shrink-0" onClick={copyInvite}>
-              {copied ? '✓ Αντιγράφηκε' : 'Αντιγραφή'}
-            </button>
+        <div className="card bg-surface-color p-6 rounded-lg shadow-lg">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="font-display text-3xl font-extrabold text-white">Lobby</h1>
+            <div className="pill bg-primary-color text-white">Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span></div>
           </div>
 
-          <div className="text-xs text-slate-400">
-            Εναλλακτικά, δώσε τον κωδικό: <span className="font-mono">{(code || '').toUpperCase()}</span>
+          <div className="text-sm space-y-2 text-text-color-secondary">
+            <p className="text-white">Μοιραστείτε αυτόν τον σύνδεσμο με τους φίλους σας για να συμμετάσχουν:</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input className="flex-1 min-w-0 rounded-lg px-4 py-2.5 outline-none bg-secondary-color text-text-color border border-border-color" readOnly value={shareUrl} />
+              <button className="btn btn-accent text-white w-full sm:w-auto shrink-0" onClick={copyInvite} style={{ backgroundColor: 'var(--accent-color)' }}>
+                {copied ? '✓ Αντιγράφηκε' : 'Αντιγραφή'}
+              </button>
+            </div>
+            <p className="text-xs text-white">Εναλλακτικά, μπορούν να εισάγουν τον κωδικό: <span className="font-mono">{(code || '').toUpperCase()}</span></p>
+            <p className="text-xs mt-1 text-white">
+              {isHost
+                ? (displayRoster.length < 2 ? 'Περιμένετε τουλάχιστον 2 παίκτες για να ξεκινήσετε.' : 'Όταν είστε έτοιμοι, πατήστε "Έναрξη παιχνιδιού".')
+                : 'Περιμένετε τον διοργανωτή να ξεκινήσει το παιχνίδi.'}
+            </p>
           </div>
-          <div className="text-xs text-slate-400 mt-1">
-            {isHost
-              ? (displayRoster.length < 2 ? 'Περίμενε να μπουν τουλάχιστον 2 παίκτες για να ξεκινήσεις.' : 'Όταν είστε έτοιμοι, πάτησε «Ξεκίνα το παιχνίδι».')
-              : 'Περίμενε τον host να ξεκινήσει το παιχνίδι.'}
+
+          <ul className="mt-6 divide-y divide-border-color">
+            {displayRoster.map((p) => (
+              <li key={p.user_id} className="py-3 flex items-center justify-between">
+                <div className="font-semibold text-lg text-white">{p.name}</div>
+                <div className="text-xs text-white">
+                  {p.is_host ? 'Διοργανωτής' : 'Παίκτης'} {p.finished ? '• Τελείωσε' : ''}
+                </div>
+              </li>
+            ))}
+            {displayRoster.length === 0 && <li className="py-4 text-text-color-secondary">Κανείς δεν είναι εδώ ακόμα...</li>}
+          </ul>
+
+          <div className="mt-6 flex justify-between">
+            <a className="btn btn-neutral" href="/">← Αρχική</a>
+            <button className="btn btn-accent disabled:opacity-60" disabled={!canStart} onClick={startGame} style={{ backgroundColor: 'var(--primary-color)' }}>Έναρξη παιχνιδιού</button>
           </div>
-        </div>
-
-        <ul className="mt-4 divide-y divide-white/10">
-          {displayRoster.map((p) => (
-            <li key={p.user_id} className="py-2 flex items-center justify-between">
-              <div className="font-semibold">{p.name}</div>
-              <div className="text-xs text-slate-300">
-                {p.is_host ? 'Host' : 'Player'} {p.finished ? '• Ολοκλήρωσε' : ''}
-              </div>
-            </li>
-          ))}
-          {displayRoster.length === 0 && <li className="py-4 text-slate-400">Κανείς δεν είναι μέσα ακόμα…</li>}
-        </ul>
-
-        <div className="mt-6 flex justify-between">
-          <a className="btn btn-neutral" href="/">← Αρχική</a>
-          <button className="btn btn-accent disabled:opacity-60" disabled={!canStart} onClick={startGame}>Ξεκίνα το παιχνίδι</button>
         </div>
       </div>
     </div>

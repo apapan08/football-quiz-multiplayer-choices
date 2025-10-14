@@ -29,12 +29,12 @@ const SOLO = true;
 const LOGO_SRC = "/logo.png";
 
 // Memoized logo so React won't re-render it unless props change
-const Logo = React.memo(function Logo() {
+export const Logo = React.memo(function Logo({ className }) {
   return (
     <img
       src={LOGO_SRC}
       alt="Λογότυπο"
-      className="h-7 w-auto"
+      className={className || "h-7 w-auto"}
       draggable="false"
       decoding="async"
       loading="eager"
@@ -46,26 +46,16 @@ const Logo = React.memo(function Logo() {
 
 // ——— Brand font wiring ———
 const FONT_LINK_HREF =
-  "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans:wght@400;700&display=swap&subset=greek";
+  "https://fonts.googleapis.com/css2?family=Anton&family=Noto+Sans:wght@400;700&display=swap&subset=greek";
 
 const FONT_FAMILIES = {
   display:
-    '"Noto Sans", Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  ui: '"Noto Sans",Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+    '"Anton", "Noto Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  ui: '"Noto Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
   mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
 };
 
-// ——— Theme ———
-const THEME = {
-  gradientFrom: "#223B57",
-  gradientTo: "#2F4E73",
-  accent: "#F11467",
-  card: "rgba(17, 24, 39, 0.55)",
-  border: "rgba(255,255,255,0.08)",
-  badgeGradient: "linear-gradient(90deg,#BA1ED3,#F11467)",
-  positiveGrad: "linear-gradient(90deg,#22C55E,#10B981)",
-  negativeGrad: "linear-gradient(90deg,#F43F5E,#EF4444)",
-};
+
 
 // ——— Game constants ———
 // Namespace all client persistence by quiz version so flipping QUIZ_ID
@@ -142,58 +132,9 @@ export default function QuizPrototype({
   onOpenOverlayRequest = null,
   onNameSaved = null,
   startStage = "intro", // ← NEW: "intro" | "name"
+  onNavigateHome = null,
 }) {
-  // ——— Inject brand fonts + base CSS once ———
-  useEffect(() => {
-    let linkEl;
-    let styleEl;
-    if (FONT_LINK_HREF) {
-      linkEl = document.createElement("link");
-      linkEl.rel = "stylesheet";
-      linkEl.href = FONT_LINK_HREF;
-      document.head.appendChild(linkEl);
-    }
-    styleEl = document.createElement("style");
-    styleEl.innerHTML = `
-      :root { 
-        --brand-grad-from: ${THEME.gradientFrom}; 
-        --brand-grad-to: ${THEME.gradientTo}; 
-        --brand-accent: ${THEME.accent}; 
-        --brand-card: ${THEME.card}; 
-        --brand-border: ${THEME.border};
-        --howto-bg: rgba(15,23,42,0.95);
-      }
-      .font-display { font-family: ${FONT_FAMILIES.display}; }
-      .font-ui { font-family: ${FONT_FAMILIES.ui}; }
-      .font-mono { font-family: ${FONT_FAMILIES.mono}; }
-      .btn { @apply rounded-2xl px-5 py-2 font-semibold shadow; }
-      .btn-accent { background: var(--brand-accent); color: white; }
-      .btn-accent:hover { filter: brightness(1.06); }
-      .btn-neutral { background: rgba(148,163,184,0.15); color: white; }
-      .btn-neutral:hover { background: rgba(148,163,184,0.25); }
-      .card { background: var(--brand-card); border:1px solid var(--brand-border); border-radius: 1.5rem; padding:1.5rem; box-shadow: 0 10px 24px rgba(0,0,0,.35); }
-      .pill { border-radius: 999px; padding: .25rem .6rem; font-weight: 700; }
 
-      /* HowTo modal helpers */
-      .scroll-area { overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
-      .scroll-area::-webkit-scrollbar { width:10px; }
-      .scroll-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.18); border-radius:999px; }
-      .howto-shadow { position: sticky; bottom: 0; height: 24px; background: linear-gradient(to top, var(--howto-bg), transparent); pointer-events: none; }
-
-      /* HUD micro-interactions */
-      @keyframes hudPop { 0%{transform:scale(.92);opacity:.8} 60%{transform:scale(1.06)} 100%{transform:scale(1);opacity:1} }
-      @keyframes hudPulse { 0%{transform:scale(.98)} 50%{transform:scale(1.04)} 100%{transform:scale(1)} }
-      @keyframes hudShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-2px)} 75%{transform:translateX(2px)} }
-      .hud-score-pop { animation: hudPop 300ms ease-out; will-change: transform,opacity; }
-      .hud-streak-pulse { animation: hudPulse 320ms ease-out; will-change: transform; }
-      .hud-streak-shake { animation: hudShake 360ms ease-in-out; will-change: transform; }
-    `;
-    document.head.appendChild(styleEl);
-    return () => {
-      if (linkEl) document.head.removeChild(linkEl);
-      if (styleEl) document.head.removeChild(styleEl);
-    };
-  }, []);
 
   // ——— Load & order questions ———
   const QUESTIONS = useMemo(
@@ -698,28 +639,27 @@ export default function QuizPrototype({
       <div className="px-3 pt-4">
         <div className="sticky top-0 z-40">
           <div
-            className="mx-auto max-w-4xl rounded-2xl backdrop-blur bg-slate-900/40 ring-1 ring-white/10 px-4 py-3"
-            style={{ boxShadow: "0 10px 24px rgba(0,0,0,.25)" }}
+            className="mx-auto max-w-4xl rounded-2xl backdrop-blur px-4 py-3 shadow-lg bg-white border border-slate-200"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {/* Left: Progress */}
               <div className="min-w-0 sm:flex-1">
                 <div
-                  className="text-sm font-semibold text-slate-200"
+                  className="text-sm font-semibold text-text"
                   aria-label={ariaText}
                 >
                   {progressText}
                 </div>
                 <div
-                  className="mt-1 h-2 w-full rounded-full bg-white/10 overflow-hidden"
+                  className="mt-1 h-2 w-full rounded-full overflow-hidden bg-slate-200"
                   role="progressbar"
                   aria-valuenow={shownCurrent}
                   aria-valuemin={0}
                   aria-valuemax={total}
                 >
                   <div
-                    className="h-full rounded-full transition-all duration-300 ease-out"
-                    style={{ width: `${pct}%`, background: THEME.accent }}
+                    className="h-full rounded-full transition-all duration-300 ease-out bg-primary"
+                    style={{ width: `${pct}%` }}
                   />
                 </div>
               </div>
@@ -730,10 +670,10 @@ export default function QuizPrototype({
                   className={`text-right ${justScored ? "hud-score-pop" : ""}`}
                   aria-label={`Σκορ ${score}`}
                 >
-                  <div className="text-xs uppercase tracking-wide text-slate-300">
+                  <div className="text-xs uppercase tracking-wide text-text">
                     Σκορ
                   </div>
-                  <div className="text-2xl md:text-3xl font-extrabold text-white">
+                  <div className="text-2xl md:text-3xl font-extrabold text-text">
                     {score}
                   </div>
                 </div>
@@ -745,12 +685,12 @@ export default function QuizPrototype({
                     }`}
                     aria-label={`ΣΕΡΙ ${streak}`}
                   >
-                    <div className="text-xs uppercase tracking-wide text-slate-300">
+                    <div className="text-xs uppercase tracking-wide text-text">
                       ΣΕΡΙ
                     </div>
                     <div className="flex items-center justify-end gap-1">
                       <span className="text-base">🔥</span>
-                      <span className="text-lg font-bold text-white">
+                      <span className="text-lg font-bold text-text">
                         {streak}
                       </span>
                     </div>
@@ -765,10 +705,10 @@ export default function QuizPrototype({
   }
 
   function StageCard({ children, variant = "default" }) {
-    if (variant === "howto") {
-      return <div className="surface-howto text-slate-100">{children}</div>;
-    }
-    return <div className="card">{children}</div>;
+    // We use `bg-white` for the card surface to contrast with the main `bg-background`.
+    // Text color will inherit from the root `color: theme('colors.text')` set in index.css.
+    const baseClasses = "p-6 rounded-lg shadow-lg bg-white";
+    return <div className={baseClasses}>{children}</div>;
   }
 
   // ——— Name Stage ———
@@ -785,10 +725,11 @@ export default function QuizPrototype({
     }, []); // runs once when NameStage mounts
 
     return (
-      <StageCard variant="howto">
+      <StageCard>
+        <Logo className="mx-auto h-32 w-auto mb-8" />
         <div className="text-center">
-          <h1 className="font-display text-3xl font-extrabold">Καλώς ήρθες!</h1>
-          <p className="mt-2 text-slate-300 font-ui">
+          <h1 className="font-display text-3xl font-extrabold text-text">Καλώς ήρθες!</h1>
+          <p className="mt-2 font-ui text-slate-500">
             Γράψε το όνομά σου — θα εμφανίζεται στο σκορ και στα αποτελέσματα.
           </p>
 
@@ -796,7 +737,7 @@ export default function QuizPrototype({
           <div className="mt-3 flex justify-center">
             <button
               onClick={() => setShowHowTo(true)}
-              className="pill bg-white text-black"
+              className="rounded-full bg-slate-200 text-text px-4 py-2 text-sm font-semibold"
             >
               🇬🇷 Οδηγίες
             </button>
@@ -805,11 +746,11 @@ export default function QuizPrototype({
 
         <div className="mt-5 max-w-md mx-auto">
           <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
               👤
             </span>
             <input
-              className="w-full rounded-xl bg-slate-900/60 px-3 py-3 pl-9 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+              className="w-full rounded-lg px-3 py-3 pl-9 outline-none bg-slate-100 text-text border border-slate-300 focus:ring-2 focus:ring-primary"
               placeholder="π.χ. Goat"
               value={tempName}
               onChange={(e) => setTempName(e.target.value)}
@@ -820,7 +761,7 @@ export default function QuizPrototype({
 
           <div className="mt-5 flex justify-center">
             <button
-              className="btn btn-accent px-6 py-3 text-base disabled:opacity-50"
+              className="btn btn-accent"
               onClick={() => {
                 const v = tempName.trim();
                 setP1((s) => ({ ...s, name: v }));
@@ -840,7 +781,7 @@ export default function QuizPrototype({
   }
 
   // ——— Intro Stage ———
-  function IntroStage() {
+  function IntroStage({ onNavigateHome }) {
     const formatPoints = (ptsArr = []) => {
       const pts = [...ptsArr].sort((a, b) => a - b);
       if (pts.length <= 1) return `×${pts[0] ?? 1}`;
@@ -849,36 +790,44 @@ export default function QuizPrototype({
     };
 
     return (
-      <StageCard variant="howto">
+      <StageCard>
+        <div className="flex items-center justify-between py-4 px-4">
+          <Logo className="h-32 w-auto" />
+          <button
+            onClick={() => setShowHowTo(true)}
+            className="rounded-full bg-slate-200 text-text px-4 py-2 text-sm font-semibold"
+          >
+            Πώς παίζεται
+          </button>
+        </div>
         <div className="text-center">
-          <h1 className="font-display text-3xl font-extrabold">
+          <h1 className="font-display text-3xl font-extrabold text-text">
             Ποδοσφαιρικό Κουίζ
           </h1>
-          <p className="mt-2 text-slate-300 font-ui">
+          <p className="mt-2 font-ui text-slate-500">
             Δες τις κατηγορίες και πάτα «Ας παίξουμε» για να ξεκινήσεις.
           </p>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-slate-800/60 bg-slate-900/40">
-          <ul className="divide-y divide-slate-800/60">
+        <div className="mt-6 rounded-2xl bg-gray-800 border border-slate-200">
+          <ul className="divide-y divide-slate-200">
             {INTRO_CATEGORIES.map((c) => (
               <li
                 key={c.category}
                 className="px-4 py-3 flex items-center justify-between"
               >
                 <div className="min-w-0">
-                  <div className="font-display text-base font-semibold">
+                  <div className="font-display text-base font-semibold text-orange-500">
                     {c.category}
                   </div>
                   {c.count > 1 && (
-                    <div className="text-xs text-slate-400 mt-0.5">
+                    <div className="text-xs mt-0.5 text-slate-500">
                       x{c.count} ερωτήσεις
                     </div>
                   )}
                 </div>
                 <span
-                  className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset
-                                bg-fuchsia-600/20 text-fuchsia-300 ring-fuchsia-500/30"
+                  className="rounded-full bg-slate-200 text-gray-800 px-3 py-1 text-xs font-bold"
                 >
                   {formatPoints(c.points)}
                 </span>
@@ -888,14 +837,13 @@ export default function QuizPrototype({
             {finalCategoryName && (
               <li className="px-4 py-3 flex items-center justify-between">
                 <div className="min-w-0">
-                  <div className="font-display text-base font-semibold">
+                  <div className="font-display text-base font-semibold text-orange-500">
                     Τελική ερώτηση — {finalTopicLabel}
                   </div>
-                  <div className="text-xs text-slate-400 mt-0.5">στοίχημα 0×–3×</div>
+                  <div className="text-xs mt-0.5 text-slate-500">στοίχημα 0×–3×</div>
                 </div>
                 <span
-                  className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset
-                                bg-fuchsia-600/20 text-fuchsia-300 ring-fuchsia-500/30"
+                  className="rounded-full bg-slate-200 text-gray-800 px-3 py-1 text-xs font-bold"
                 >
                   0×–3×
                 </span>
@@ -904,8 +852,16 @@ export default function QuizPrototype({
           </ul>
         </div>
 
-        <div className="mt-6 flex justify-center">
-          <button onClick={next} className="btn btn-accent px-6 py-3 text-base">
+        <div className="mt-6 flex justify-between">
+          {onNavigateHome && (
+            <button
+              onClick={() => onNavigateHome('/')}
+              className="btn bg-primary text-white"
+            >
+              Αρχική
+            </button>
+          )}
+          <button onClick={next} className="btn btn-accent">
             Ας παίξουμε
           </button>
         </div>
@@ -942,17 +898,15 @@ export default function QuizPrototype({
 
     return (
       <StageCard>
-        {/* Header: logo only to avoid duplicate category chips */}
-        <div className="flex items-center justify-between">
-          <Logo />
-          <div />
+        <div className="flex justify-center mb-4">
+          <img src={LOGO_SRC} alt="Logo" className="h-24 w-auto" />
         </div>
 
         {/* Hidden override control for now */}
         <div className="hidden mt-2">
-          <label className="text-xs text-slate-400 mr-2">Χρόνος κατηγορίας</label>
+          <label className="text-xs mr-2 text-slate-500">Χρόνος κατηγορίας</label>
           <select
-            className="rounded bg-slate-900/60 text-xs px-2 py-1"
+            className="rounded text-xs px-2 py-1 bg-slate-100 text-text"
             value={categorySeconds}
             onChange={(e) =>
               setCategorySecondsOverride(Number(e.target.value))
@@ -967,20 +921,16 @@ export default function QuizPrototype({
         </div>
 
         {/* Title */}
-        <h2 className="mt-4 text-center text-3xl font-extrabold tracking-wide font-display">
+        <h2 className="mt-4 text-center text-3xl font-extrabold tracking-wide font-display" style={{ color: 'var(--primary-color)' }}>
           {q.category}
         </h2>
 
         {/* Compact chips row: points (no-wrap) + small X2 chip */}
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
           <span
-            className="pill pill-nowrap"
+            className="rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap text-white"
+            style={{ backgroundColor: 'var(--accent-color)' }}
             aria-label={`${points} πόντοι`}
-            style={{
-              background: THEME.badgeGradient,
-              padding: ".45rem .9rem",
-              fontWeight: 800,
-            }}
           >
             ×{points}
           </span>
@@ -1001,15 +951,15 @@ export default function QuizPrototype({
 
         {/* Tiny helper caption (optional) */}
         {!isFinalIndex && (
-          <div className="mt-1 text-center text-xs text-slate-400 font-ui">
+          <div className="mt-1 text-center text-xs font-ui text-slate-500">
             X2: μία φορά ανά παιχνίδι
           </div>
         )}
 
         {/* Final betting UI on last question */}
         {isFinalIndex && (
-          <div className="mt-6 rounded-2xl bg-slate-900/50 p-4">
-            <div className="mb-2 text-center text-sm text-slate-300 font-ui">
+          <div className="mt-6 rounded-2xl p-4 bg-slate-50 border border-slate-200">
+            <div className="mb-2 text-center text-sm font-ui text-slate-500">
               Τελικός — Τοποθέτησε το ποντάρισμά σου (0–3) και πάτησε Επόμενο.
             </div>
             <div className="max-w-2xl mx-auto flex justify-center">
@@ -1201,26 +1151,24 @@ export default function QuizPrototype({
 
     return (
       <StageCard>
-        {/* Header: logo left, chips right */}
-        <div className="flex items-center justify-between">
-          <Logo />
-          <div className="flex items-center gap-2">
-            <div className="rounded-full bg-slate-700/70 px-3 py-1 text-xs font-semibold">
+        <div className="flex justify-center mb-4">
+          <Logo className="h-24 w-auto" />
+        </div>
+        <div className="flex items-center gap-2">
+            <div className="rounded-full px-3 py-1 text-xs font-semibold bg-slate-200 text-text">
               {isFinalIndex ? "Τελικός 0×–3×" : `Κατηγορία ×${q.points || 1}`}
             </div>
             {isX2ActiveFor("p1") && !isFinalIndex && (
               <div
-                className="rounded-full px-3 py-1 text-xs font-semibold text-white"
-                style={{ background: THEME.badgeGradient }}
+                className="rounded-full px-3 py-1 text-xs font-semibold bg-primary text-white"
                 title="Χ2 ενεργό"
               >
                 ×2
               </div>
             )}
           </div>
-        </div>
 
-        <h3 className="mt-4 font-display text-2xl font-bold leading-snug">
+        <h3 className="mt-4 font-display text-2xl font-bold leading-snug text-text">
           {q.prompt}
         </h3>
 
@@ -1321,7 +1269,7 @@ export default function QuizPrototype({
             <input
               type="number"
               inputMode="numeric"
-              className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+              className="w-full rounded-lg px-4 py-3 outline-none bg-slate-100 text-text border border-slate-300 focus:ring-2 focus:ring-primary"
               placeholder="Πληκτρολόγησε αριθμό…"
               value={inputValue ?? ""}
               onChange={(e) => setInputValue(e.target.value)}
@@ -1351,7 +1299,7 @@ export default function QuizPrototype({
             }}
           >
             <input
-              className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+              className="w-full rounded-lg px-4 py-3 outline-none bg-slate-100 text-text border border-slate-300 focus:ring-2 focus:ring-primary"
               placeholder="Γράψε την απάντησή σου…"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -1420,42 +1368,39 @@ export default function QuizPrototype({
     const isWrong = outcomeKey === "wrong" || outcomeKey === "final-wrong";
     const deltaPts = currentRow ? currentRow.delta : 0;
 
+    const outcomeBg = isCorrect
+      ? "bg-green-100 border-green-200"
+      : isWrong
+      ? "bg-red-100 border-red-200"
+      : "bg-slate-100 border-slate-200";
+
+    const outcomePillBg = isCorrect ? "bg-green-500" : "bg-red-500";
+
     return (
       <StageCard>
         {/* Header: show logo on the left; optional chip on the right */}
+        <div className="flex justify-center mb-4">
+          <Logo className="h-24 w-auto" />
+        </div>
         <div className="flex items-center justify-between">
-          <Logo />
-          <div className="rounded-full bg-slate-700/70 px-3 py-1 text-xs font-semibold">
+          <div className="rounded-full px-3 py-1 text-xs font-semibold bg-slate-200 text-text">
             {isFinalIndex ? "Τελικός 0×–3×" : `Κατηγορία ×${q.points || 1}`}
           </div>
         </div>
 
         <div className="text-center mt-4">
-          <div className="font-display text-3xl font-extrabold">{q.answer}</div>
+          <div className="font-display text-3xl font-extrabold text-text">{q.answer}</div>
 
         <div className="mt-3 font-ui text-sm">
             <div
-              className="inline-flex items-center gap-2 rounded-lg px-3 py-2"
-              style={{
-                background: isCorrect
-                  ? "rgba(16,185,129,0.15)"
-                  : isWrong
-                  ? "rgba(244,63,94,0.15)"
-                  : "rgba(148,163,184,0.10)",
-                border: "1px solid rgba(255,255,255,0.12)",
-              }}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 border ${outcomeBg}`}
             >
-              <span style={{ opacity: 0.85 }}>Απάντηση Παίκτη:</span>
-              <span className="italic text-slate-100">{userAnswerStr}</span>
+              <span className="opacity-80 text-black">Player Answer:</span>
+              <span className="italic text-text">{userAnswerStr}</span>
 
               {(isCorrect || isWrong) && (
                 <span
-                  className="ml-2 rounded-full px-2.5 py-0.5 text-xs font-bold text-white"
-                  style={{
-                    background: isCorrect
-                      ? THEME.positiveGrad
-                      : THEME.negativeGrad,
-                  }}
+                  className={`ml-2 rounded-full px-2.5 py-0.5 text-xs font-bold text-white ${outcomePillBg}`}
                   title={isCorrect ? "Σωστό" : "Λάθος"}
                 >
                   {isCorrect ? "✔" : "✘"}{" "}
@@ -1467,7 +1412,7 @@ export default function QuizPrototype({
 
           {/* fact */}
           {q.fact && (
-            <div className="mt-2 font-ui text-sm text-slate-300">ℹ️ {q.fact}</div>
+            <div className="mt-2 font-ui text-sm text-slate-500">ℹ️ {q.fact}</div>
           )}
         </div>
 
@@ -1487,7 +1432,7 @@ export default function QuizPrototype({
           />
         )}
 
-        <div className="mt-3 text-center text-xs text-slate-400 font-ui">
+        <div className="mt-3 text-center text-xs font-ui text-slate-500">
           {isX2ActiveFor("p1") && !isFinalIndex && <span>(×2 ενεργό)</span>}
         </div>
 
@@ -1496,8 +1441,7 @@ export default function QuizPrototype({
           <div className="mt-6 flex flex-col items-center gap-3 font-ui">
             <div className="flex flex-wrap justify-center gap-2">
               <button
-                className="btn text-white"
-                style={{ background: THEME.positiveGrad }}
+                className="btn btn-accent"
                 onClick={() => {
                   awardToP1(1);
                   setAnswered((a) => ({ ...a, [index]: "correct" }));
@@ -1508,8 +1452,7 @@ export default function QuizPrototype({
                 Σωστό
               </button>
               <button
-                className="btn text-white"
-                style={{ background: THEME.negativeGrad }}
+                className="btn btn-neutral"
                 onClick={() => {
                   noAnswer();
                   setAnswered((a) => ({ ...a, [index]: "wrong" }));
@@ -1526,14 +1469,14 @@ export default function QuizPrototype({
         {/* Final scoring controls on last question (text mode only) */}
         {isFinalIndex && mode === "text" && (
           <div className="card font-ui mt-6 text-center">
-            <div className="mb-2 text-sm text-slate-300">
+            <div className="mb-2 text-sm text-slate-500">
               Τελικός — Απονέμονται πόντοι βάσει πονταρίσματος
             </div>
-            <div className="text-xs text-slate-400 mb-3">
+            <div className="text-xs mb-3 text-slate-500">
               Το Χ2 δεν ισχύει στον Τελικό.
             </div>
             <div className="space-y-2">
-              <div className="text-sm text-slate-300">{p1.name}</div>
+              <div className="text-sm text-slate-500">{p1.name}</div>
               <div className="flex flex-wrap justify-center gap-2">
                 <button
                   disabled={finalResolved.p1}
@@ -1541,8 +1484,7 @@ export default function QuizPrototype({
                     finalizeOutcomeP1("correct");
                     next();
                   }}
-                  className="btn text-white disabled:opacity-50"
-                  style={{ background: THEME.positiveGrad }}
+                  className="btn btn-accent disabled:opacity-50"
                 >
                   Σωστό +{wager.p1}
                 </button>
@@ -1552,13 +1494,12 @@ export default function QuizPrototype({
                     finalizeOutcomeP1("wrong");
                     next();
                   }}
-                  className="btn text-white disabled:opacity-50"
-                  style={{ background: THEME.negativeGrad }}
+                  className="btn btn-neutral disabled:opacity-50"
                 >
                   Λάθος −{wager.p1}
                 </button>
                 {finalResolved.p1 && (
-                  <span className="text-xs text-emerald-300">Ολοκληρώθηκε ✔</span>
+                  <span className="text-xs text-primary">Ολοκληρώθηκε ✔</span>
                 )}
               </div>
             </div>
@@ -1662,36 +1603,23 @@ export default function QuizPrototype({
         ? "⚡ Ενεργοποίηση Χ2"
         : "Χ2 χρησιμοποιήθηκε";
 
-      const activeStyle = {
-        background: THEME.badgeGradient,
-        color: "#fff",
-        padding: ".45rem .9rem",
-        fontWeight: 800,
-        cursor: clickable ? "pointer" : "default",
-        opacity: clickable ? 1 : 0.75,
-      };
-      const mutedStyle = {
-        background: "rgba(148,163,184,0.18)",
-        border: "1px solid rgba(255,255,255,0.16)",
-        color: "rgba(255,255,255,0.85)",
-        padding: ".45rem .9rem",
-        fontWeight: 800,
-        opacity: 0.8,
-        cursor: "default",
-      };
+      const baseChip = "rounded-full select-none text-xs font-bold px-3 py-1.5";
+      const activeChip = `${baseChip} bg-accent text-white cursor-pointer`;
+      const armedChip = `${baseChip} bg-accent text-white animate-pulse`;
+      const disabledChip = `${baseChip} bg-slate-200 text-slate-500 cursor-not-allowed`;
 
-      const style = clickable || armed ? activeStyle : mutedStyle;
+      const chipClass = clickable ? activeChip : armed ? armedChip : disabledChip;
 
       return (
         <div className="relative inline-block">
           <button
             type="button"
-            className="pill select-none"
-            style={style}
+            className={chipClass}
             onClick={handlePrimaryClick}
             disabled={!clickable}
             aria-disabled={!clickable}
             aria-label="Ενεργοποίηση Χ2"
+            style={clickable ? { backgroundColor: 'var(--accent-color)' } : {}}
           >
             {chipText}
           </button>
@@ -1699,15 +1627,15 @@ export default function QuizPrototype({
           {/* Inline confirm popover */}
           {confirmOpen && (
             <div
-              className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl bg-slate-900/95 ring-1 ring-white/10 p-3 shadow-xl z-10"
+              className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl p-3 shadow-xl z-10 bg-white border border-slate-200"
               role="dialog"
               aria-modal="true"
               aria-label="Επιβεβαίωση Χ2"
             >
-              <div className="text-sm text-slate-200 font-semibold mb-1">
+              <div className="text-sm font-semibold mb-1 text-text">
                 Ενεργοποίηση Χ2;
               </div>
-              <div className="text-xs text-slate-400 mb-3">
+              <div className="text-xs mb-3 text-slate-500">
                 Θα διπλασιάσει τους πόντους αυτής της ερώτησης. Συνέχεια;
               </div>
               <div className="flex justify-end gap-2">
@@ -1717,7 +1645,7 @@ export default function QuizPrototype({
                 >
                   Άκυρο
                 </button>
-                <button className="btn btn-accent" onClick={confirmArm}>
+                <button className="btn btn-accent" onClick={confirmArm} style={{ backgroundColor: 'var(--accent-color)' }}>
                   Ναι, ενεργοποίηση
                 </button>
               </div>
@@ -1731,17 +1659,16 @@ export default function QuizPrototype({
     return (
       <div className="card font-ui mx-auto text-center relative">
         {label ? (
-          <div className="mb-3 text-sm text-slate-300">{label}</div>
+          <div className="mb-3 text-sm text-slate-500">{label}</div>
         ) : null}
 
         <button
           className={[
-            "rounded-full px-5 py-2.5 text-white font-extrabold shadow transition",
+            "rounded-full px-5 py-2.5 font-extrabold shadow transition",
             clickable
-              ? "hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-pink-400"
-              : "opacity-60 cursor-not-allowed",
+              ? "bg-accent text-white hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              : "bg-slate-200 text-slate-500 opacity-60 cursor-not-allowed",
           ].join(" ")}
-          style={{ background: THEME.badgeGradient }}
           onClick={handlePrimaryClick}
           disabled={!clickable}
           aria-disabled={!clickable}
@@ -1750,19 +1677,19 @@ export default function QuizPrototype({
           {armed ? "Χ2 ενεργό" : "⚡ Ενεργοποίηση Χ2"}
         </button>
 
-        <div className="mt-2 text-xs text-slate-400">{statusText}</div>
+        <div className="mt-2 text-xs text-slate-500">{statusText}</div>
 
         {confirmOpen && (
           <div
-            className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl bg-slate-900/95 ring-1 ring-white/10 p-3 shadow-xl"
+            className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[min(92vw,320px)] rounded-xl p-3 shadow-xl bg-white border border-slate-200"
             role="dialog"
             aria-modal="true"
             aria-label="Επιβεβαίωση Χ2"
           >
-            <div className="text-sm text-slate-200 font-semibold mb-1">
+            <div className="text-sm font-semibold mb-1 text-text">
               Ενεργοποίηση Χ2;
             </div>
-            <div className="text-xs text-slate-400 mb-3">
+            <div className="text-xs mb-3 text-slate-500">
               Θα διπλασιάσει τους πόντους αυτής της ερώτησης. Συνέχεια;
             </div>
             <div className="flex justify-end gap-2">
@@ -1772,7 +1699,7 @@ export default function QuizPrototype({
               >
                 Άκυρο
               </button>
-              <button className="btn btn-accent" onClick={confirmArm}>
+              <button className="btn btn-accent" onClick={confirmArm} style={{ backgroundColor: 'var(--accent-color)' }}>
                 Ναι, ενεργοποίηση
               </button>
             </div>
@@ -1785,14 +1712,13 @@ export default function QuizPrototype({
   function WagerControl({ label, value, onChange }) {
     return (
       <div className="card font-ui text-center flex flex-col items-center">
-        <div className="mb-3 text-sm text-slate-300">{label}</div>
+        <div className="mb-3 text-sm text-slate-500">{label}</div>
         <div className="flex items-center gap-2 justify-center">
           <button className="btn btn-neutral" onClick={() => onChange(value - 1)}>
             −
           </button>
           <div
-            className="pill text-white text-xl px-5 py-2"
-            style={{ background: THEME.badgeGradient }}
+            className="rounded-full text-white text-xl px-5 py-2 bg-primary"
           >
             {value}
           </div>
@@ -1800,7 +1726,7 @@ export default function QuizPrototype({
             +
           </button>
         </div>
-        <div className="mt-2 text-xs text-slate-400">Ποντάρισμα 0–3 πόντοι</div>
+        <div className="mt-2 text-xs text-slate-500">Ποντάρισμα 0–3 πόντοι</div>
       </div>
     );
   }
@@ -1890,10 +1816,7 @@ export default function QuizPrototype({
 
   return (
     <div
-      className="min-h-screen w-full flex justify-center items-start p-4"
-      style={{
-        background: `linear-gradient(180deg, ${THEME.gradientFrom}, ${THEME.gradientTo})`,
-      }}
+      className="min-h-screen w-full flex justify-center items-start p-4 bg-background"
     >
       <div className="w-full max-w-4xl space-y-4 text-slate-100">
         {/* HUD */}
@@ -1915,18 +1838,20 @@ export default function QuizPrototype({
 
         {/* Stages */}
         {stage === STAGES.NAME && !p1.name && <NameStage />}
-        {stage === STAGES.INTRO && <IntroStage />}
+        {stage === STAGES.INTRO && <IntroStage onNavigateHome={onNavigateHome} />}
         {stage === STAGES.CATEGORY && <CategoryStage />}
         {stage === STAGES.QUESTION && <QuestionStage />}
         {stage === STAGES.ANSWER && <AnswerStage />}
         {stage === STAGES.RESULTS && <ResultsStage />}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-slate-300 font-ui">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-slate-500 font-ui">
           <div>Στάδιο: {stageLabel(stage)}</div>
           <div className="flex items-center gap-3">
-            <button className="btn btn-neutral" onClick={resetGame}>
-              Επαναφορά παιχνιδιού
-            </button>
+            {stage !== STAGES.INTRO && (
+              <button className="btn btn-neutral" onClick={resetGame}>
+                Επαναφορά παιχνιδιού
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1969,15 +1894,15 @@ function HowToModal({ onClose, totalQuestions = 9 }) {
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
       <div className="min-h-full flex items-start sm:items-center justify-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-        <div className="relative w-full max-w-[680px] font-ui rounded-2xl shadow-xl ring-1 ring-white/10 bg-[var(--howto-bg)] text-slate-100 flex flex-col overflow-hidden max-h-[clamp(420px,85dvh,760px)]">
-          <div className="sticky top-0 z-10 px-6 py-4 bg-[var(--howto-bg)] backdrop-blur-sm rounded-t-2xl flex items-center justify-between border-b border-white/10">
+        <div className="relative w-full max-w-[680px] font-ui rounded-2xl shadow-xl ring-1 ring-slate-700 bg-slate-800 text-slate-200 flex flex-col overflow-hidden max-h-[clamp(420px,85dvh,760px)]">
+          <div className="sticky top-0 z-10 px-6 py-4 bg-slate-800/80 backdrop-blur-sm rounded-t-2xl flex items-center justify-between border-b border-slate-700">
             <h2 className="font-display text-2xl font-extrabold">Πώς παίζεται</h2>
             <div className="flex items-center gap-2">
               <button onClick={onClose} className="btn btn-neutral">Κλείσιμο ✕</button>
             </div>
           </div>
 
-          <div className="scroll-area px-6 pb-6 pt-2 flex-1 min-h-0 text-slate-100 text-sm md:text-base leading-relaxed">
+          <div className="scroll-area px-6 pb-6 pt-2 flex-1 min-h-0 text-sm md:text-base leading-relaxed">
             <ul className="mt-2 list-disc pl-5 space-y-2">
               <li><strong>{totalQuestions} ερωτήσεις.</strong> Κάθε μία έχει συγκεκριμένους πόντους (ανάλογα με τη δυσκολία).</li>
               <li><strong>Στόχος:</strong> μάζεψε όσο περισσότερους πόντους μπορείς.</li>
@@ -2007,18 +1932,18 @@ function FinalHowToModal({ onClose }) {
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
       <div className="min-h-full flex items-start sm:items-center justify-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-        <div className="relative w-full max-w-[640px] font-ui rounded-2xl shadow-xl ring-1 ring-white/10 bg-[var(--howto-bg)] text-slate-100 flex flex-col overflow-hidden">
-          <div className="sticky top-0 z-10 px-6 py-4 bg-[var(--howto-bg)] backdrop-blur-sm rounded-t-2xl flex items-center justify-between border-b border-white/10">
+        <div className="relative w-full max-w-[640px] font-ui rounded-2xl shadow-xl ring-1 ring-slate-700 bg-slate-800 text-slate-200 flex flex-col overflow-hidden">
+          <div className="sticky top-0 z-10 px-6 py-4 bg-slate-800/80 backdrop-blur-sm rounded-t-2xl flex items-center justify-between border-b border-slate-700">
             <h2 className="font-display text-2xl font-extrabold">Τελική ερώτηση — Πώς παίζεται</h2>
             <button onClick={onClose} className="btn btn-neutral">Κλείσιμο ✕</button>
           </div>
 
-          <div className="px-6 pb-6 pt-3 text-slate-100 text-sm md:text-base leading-relaxed">
+          <div className="px-6 pb-6 pt-3 text-sm md:text-base leading-relaxed">
             <ul className="list-disc pl-5 space-y-2">
               <li><strong>Στοίχημα 0–3.</strong> Πριν δεις την ερώτηση, διάλεξε πόσους πόντους θα ρισκάρεις.</li>
               <li><strong>Σωστό:</strong> κερδίζεις + στοίχημα πόντους. <strong>Λάθος/Καμία απάντηση:</strong> χάνεις − στοίχημα πόντους.</li>
               <li><strong>Δεν ισχύει Χ2</strong> και <strong>δεν προστίθεται bonus σερί</strong> στον τελικό.</li>
-              <li className="text-slate-300 text-[0.95em]">Παράδειγμα: σκορ 15 και στοίχημα 2 → σωστό = 17, λάθος/καμία απάντηση = 13.</li>
+              <li className="text-slate-400 text-[0.95em]">Παράδειγμα: σκορ 15 και στοίχημα 2 → σωστό = 17, λάθος/καμία απάντηση = 13.</li>
             </ul>
 
             <div className="mt-5 flex justify-center">

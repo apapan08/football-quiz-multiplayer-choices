@@ -11,6 +11,8 @@ function sortRows(a, b) {
   return (a.duration_seconds ?? 9e9) - (b.duration_seconds ?? 9e9);
 }
 
+import { Logo } from "../App.jsx";
+
 export default function Leaderboard() {
   const { code } = useParams();
   const nav = useNavigate();
@@ -57,6 +59,7 @@ export default function Leaderboard() {
   return (
     <div className="min-h-screen p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}>
       <div className="max-w-2xl mx-auto text-slate-100">
+        <Logo className="mx-auto h-48 w-auto" />
         <div className="card">
           <div className="flex items-center justify-between">
             <h1 className="font-display text-2xl font-extrabold">Leaderboard</h1>

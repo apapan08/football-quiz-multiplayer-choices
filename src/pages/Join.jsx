@@ -5,6 +5,8 @@ import supabase from '../lib/supabaseClient';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { QUIZ_ID } from '../lib/quizVersion';
 
+import { Logo } from "../App.jsx";
+
 export default function Join() {
   const { code } = useParams();
   const nav = useNavigate();
@@ -53,20 +55,22 @@ export default function Join() {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-6"
-      style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
+      style={{ background: 'var(--background-color)' }}
     >
-      <div className="card w-full max-w-lg text-slate-100">
+      <div className="card w-full max-w-lg" style={{ backgroundColor: 'var(--surface-color)', color: 'var(--text-color)' }}>
+        <Logo className="mx-auto h-48 w-auto" />
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-extrabold">Μπες στο δωμάτιο</h1>
-          <div className="pill bg-white/10 whitespace-nowrap">
+          <div className="pill whitespace-nowrap">
             Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span>
           </div>
         </div>
 
         <div className="mt-6 space-y-3">
-          <label className="block text-sm text-slate-300">Όνομα εμφάνισης</label>
+          <label className="block text-sm" style={{ color: 'var(--text-color-secondary)' }}>Όνομα εμφάνισης</label>
           <input
-            className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+            className="w-full rounded-lg px-4 py-3 outline-none"
+            style={{ backgroundColor: 'var(--secondary-color)', color: 'var(--text-color)', border: '1px solid var(--border-color)' }}
             placeholder="π.χ. Goat"
             value={tempName}
             onChange={(e) => setTempName(e.target.value)}
@@ -82,7 +86,7 @@ export default function Join() {
         <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
           <a className="btn btn-neutral w-full sm:w-auto" href="/">← Αρχική</a>
           <button
-            className="btn btn-neutral w-full sm:w-auto whitespace-nowrap disabled:opacity-50"
+            className="btn btn-accent w-full sm:w-auto whitespace-nowrap disabled:opacity-50"
             onClick={handleJoin}
             disabled={!ready || !canJoin}
           >

@@ -115,7 +115,7 @@ export default function CountdownBar({
           className="h-full rounded-full"
           style={{
             width: `${Math.max(0, progress * 100)}%`,
-            background: "linear-gradient(90deg,#F11467,#BA1ED3)",
+            background: "linear-gradient(90deg, #f97316, #ea580c)",
             transition: "width 0.16s linear",
           }}
         />

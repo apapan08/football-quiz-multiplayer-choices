@@ -88,6 +88,8 @@ export default function PlayRoom() {
   });
   const { broadcastFinish } = roomChannelData;
 
+  console.log('nav in PlayRoom:', nav);
+
   const hasFinishedRef = useRef(false);
 
   async function onFinish({ score, maxStreak, durationSeconds, resultRows }) {
@@ -135,6 +137,7 @@ export default function PlayRoom() {
         onFinish={onFinish}
         playerName={name || 'Player'}
         onOpenOverlayRequest={() => setShowOverlay(true)}
+        onNavigateHome={nav}
       />
 
       {showOverlay && (

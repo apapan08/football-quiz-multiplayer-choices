@@ -111,7 +111,7 @@ export default function AutoCompleteAnswer({
       return (
         <span className="text-sm font-semibold">
           {label.slice(0, pos)}
-          <mark className="rounded px-0.5" style={{ background: "rgba(241,20,103,.25)" }}>
+          <mark className="rounded px-0.5" style={{ background: "rgba(249, 115, 22, 0.4)" }}>
             {label.slice(pos, pos + ql.length)}
           </mark>
           {label.slice(pos + ql.length)}
@@ -131,7 +131,7 @@ export default function AutoCompleteAnswer({
   return (
     <div className="relative z-40">
       <input
-        className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+        className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-400"
         placeholder={placeholder}
         value={q}
         onChange={(e)=>{ setQ(e.target.value); setOpen(true); }}
@@ -168,7 +168,7 @@ export default function AutoCompleteAnswer({
                       onClick={()=>choose(r)}
                       style={{
                         color: "white",
-                        background: active ? "rgba(241,20,103,0.14)" : "transparent",
+                        background: active ? "rgba(249, 115, 22, 0.3)" : "transparent",
                         borderLeft: active ? "3px solid var(--brand-accent)" : "3px solid transparent",
                       }}
                     >
