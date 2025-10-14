@@ -713,7 +713,7 @@ export default function QuizPrototype({
   }
 
   // ——— Name Stage ———
-  const NameStage = React.memo(function NameStage() {
+  function NameStage() {
     const [tempName, setTempName] = useState(p1.name || "");
     const canProceed = tempName.trim().length >= 2;
 
@@ -782,7 +782,7 @@ export default function QuizPrototype({
   }
 
   // ——— Intro Stage ———
-  const IntroStage = React.memo(function IntroStage({ onNavigateHome }) {
+  function IntroStage({ onNavigateHome }) {
     const formatPoints = (ptsArr = []) => {
       const pts = [...ptsArr].sort((a, b) => a - b);
       if (pts.length <= 1) return `×${pts[0] ?? 1}`;
@@ -870,7 +870,7 @@ export default function QuizPrototype({
     );
   }
 
-  const CategoryStage = React.memo(function CategoryStage({ catDeadline, setCatDeadline }) {
+  function CategoryStage({ catDeadline, setCatDeadline }) {
     const points = q.points || 1;
 
     // Optional hidden override (host-only later)
@@ -999,7 +999,7 @@ export default function QuizPrototype({
     );
   }
 
-  const QuestionStage = React.memo(function QuestionStage() {
+  function QuestionStage() {
     const mode = q.answerMode || "text";
     const questionSeconds = q.time_seconds ?? DEFAULT_QUESTION_SECONDS;
 
@@ -1328,7 +1328,7 @@ export default function QuizPrototype({
     );
   }
 
-  const AnswerStage = React.memo(function AnswerStage() {
+  function AnswerStage() {
     const mode = q.answerMode || "text";
     const rawUser = (playerAnswers && playerAnswers[index]) ?? "";
 
@@ -1515,7 +1515,7 @@ export default function QuizPrototype({
     );
   }
 
-  const ResultsStage = React.memo(function ResultsStage() {
+  function ResultsStage() {
     const rows = useMemo(
       () =>
         RESULT_ROWS.map((r) => ({
