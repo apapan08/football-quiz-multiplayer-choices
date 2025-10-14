@@ -286,6 +286,7 @@ export default function QuizPrototype({
 
   // Final question tip
   const [showFinalHowTo, setShowFinalHowTo] = useState(false);
+  const [catDeadline, setCatDeadline] = useState(null);
   const [finalTipShown, setFinalTipShown] = useState(false);
   useEffect(() => {
     if (stage === STAGES.CATEGORY && isFinalIndex && !finalTipShown) {
@@ -869,7 +870,7 @@ export default function QuizPrototype({
     );
   }
 
-  function CategoryStage() {
+  function CategoryStage({ catDeadline, setCatDeadline }) {
     const points = q.points || 1;
 
     // Optional hidden override (host-only later)
@@ -877,14 +878,15 @@ export default function QuizPrototype({
     const categorySeconds =
       categorySecondsOverride ?? DEFAULT_CATEGORY_SECONDS;
 
-    const [catDeadline, setCatDeadline] = useState(() => {
-      const raw = Number(localStorage.getItem(CATEGORY_DEADLINE_KEY));
-      return Number.isFinite(raw) ? raw : null;
-    });
-
     // (Re)arm deadline on entering Category (or index change)
     useEffect(() => {
       if (stage !== STAGES.CATEGORY) return;
+      // If it's the final question and the tip is about to be shown, don't start the timer.
+      if (isFinalIndex && !finalTipShown) {
+        setCatDeadline(null);
+        return;
+      }
+
       const now = Date.now();
       let dl = Number(localStorage.getItem(CATEGORY_DEADLINE_KEY));
       if (!Number.isFinite(dl) || dl <= now) {
@@ -894,7 +896,7 @@ export default function QuizPrototype({
         } catch {}
       }
       setCatDeadline(dl);
-    }, [stage, index, categorySeconds]);
+    }, [stage, index, categorySeconds, isFinalIndex, finalTipShown, setCatDeadline]);
 
     return (
       <StageCard>
@@ -1833,13 +1835,30 @@ export default function QuizPrototype({
         {/* Modals */}
         {showHowTo && <HowToModal onClose={() => setShowHowTo(false)} />}
         {showFinalHowTo && (
-          <FinalHowToModal onClose={() => setShowFinalHowTo(false)} />
+          <FinalHowToModal
+            onClose={() => {
+              setShowFinalHowTo(false);
+              if (isFinalIndex) {
+                const now = Date.now();
+                const dl = now + DEFAULT_CATEGORY_SECONDS * 1000 + GRACE_MS;
+                try {
+                  localStorage.setItem(CATEGORY_DEADLINE_KEY, String(dl));
+                } catch {}
+                setCatDeadline(dl);
+              }
+            }}
+          />
         )}
 
         {/* Stages */}
         {stage === STAGES.NAME && !p1.name && <NameStage />}
         {stage === STAGES.INTRO && <IntroStage onNavigateHome={onNavigateHome} />}
-        {stage === STAGES.CATEGORY && <CategoryStage />}
+        {stage === STAGES.CATEGORY && (
+          <CategoryStage
+            catDeadline={catDeadline}
+            setCatDeadline={setCatDeadline}
+          />
+        )}
         {stage === STAGES.QUESTION && <QuestionStage />}
         {stage === STAGES.ANSWER && <AnswerStage />}
         {stage === STAGES.RESULTS && <ResultsStage />}
