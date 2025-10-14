@@ -901,7 +901,7 @@ export default function QuizPrototype({
     return (
       <StageCard>
         <div className="flex justify-center mb-4">
-          <img src={LOGO_SRC} alt="Logo" className="h-24 w-auto" />
+          <Logo className="h-24 w-auto" />
         </div>
 
         {/* Hidden override control for now */}
@@ -1851,17 +1851,27 @@ export default function QuizPrototype({
         )}
 
         {/* Stages */}
-        {stage === STAGES.NAME && !p1.name && <NameStage />}
-        {stage === STAGES.INTRO && <IntroStage onNavigateHome={onNavigateHome} />}
-        {stage === STAGES.CATEGORY && (
+        <div style={{ display: stage === STAGES.NAME && !p1.name ? 'block' : 'none' }}>
+          <NameStage />
+        </div>
+        <div style={{ display: stage === STAGES.INTRO ? 'block' : 'none' }}>
+          <IntroStage onNavigateHome={onNavigateHome} />
+        </div>
+        <div style={{ display: stage === STAGES.CATEGORY ? 'block' : 'none' }}>
           <CategoryStage
             catDeadline={catDeadline}
             setCatDeadline={setCatDeadline}
           />
-        )}
-        {stage === STAGES.QUESTION && <QuestionStage />}
-        {stage === STAGES.ANSWER && <AnswerStage />}
-        {stage === STAGES.RESULTS && <ResultsStage />}
+        </div>
+        <div style={{ display: stage === STAGES.QUESTION ? 'block' : 'none' }}>
+          <QuestionStage />
+        </div>
+        <div style={{ display: stage === STAGES.ANSWER ? 'block' : 'none' }}>
+          <AnswerStage />
+        </div>
+        <div style={{ display: stage === STAGES.RESULTS ? 'block' : 'none' }}>
+          <ResultsStage />
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-slate-500 font-ui">
           <div>Στάδιο: {stageLabel(stage)}</div>
