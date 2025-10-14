@@ -1935,12 +1935,9 @@ function FinalHowToModal({ onClose }) {
           </div>
 
           <div className="px-6 pb-6 pt-3 text-sm md:text-base leading-relaxed">
-            <ul className="list-disc pl-5 space-y-2">
-              <li><strong>Στοίχημα 0–3.</strong> Πριν δεις την ερώτηση, διάλεξε πόσους πόντους θα ρισκάρεις.</li>
-              <li><strong>Σωστό:</strong> κερδίζεις + στοίχημα πόντους. <strong>Λάθος/Καμία απάντηση:</strong> χάνεις − στοίχημα πόντους.</li>
-              <li><strong>Δεν ισχύει Χ2</strong> και <strong>δεν προστίθεται bonus σερί</strong> στον τελικό.</li>
-              <li className="text-slate-400 text-[0.95em]">Παράδειγμα: σκορ 15 και στοίχημα 2 → σωστό = 17, λάθος/καμία απάντηση = 13.</li>
-            </ul>
+            <p>
+              <strong>Τελική ερώτηση (στοίχημα 0–3):</strong> Διάλεξε πόσους πόντους θα ρισκάρεις (0–3). Αν απαντήσεις σωστά, <strong>κερδίζεις</strong> τόσους πόντους, αν απαντήσεις λάθος ή δεν απαντήσεις, <strong>χάνεις</strong> τους ίδιους πόντους. Αν βάλεις 0, ούτε κερδίζεις ούτε χάνεις. <em>Το Χ2 δεν επιτρέπεται και δεν προστίθεται το bonus του σερί.</em> <span className="block text-slate-400 mt-1 text-[0.95em]">Παράδειγμα: σκορ 15 και στοίχημα 2 → σωστό = 17, λάθος/καμία απάντηση = 13.</span>
+            </p>
 
             <div className="mt-5 flex justify-center">
               <button className="btn btn-accent px-6 py-2" onClick={onClose}>
