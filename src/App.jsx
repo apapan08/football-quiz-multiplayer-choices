@@ -727,7 +727,7 @@ export default function QuizPrototype({
 
     return (
       <StageCard>
-        <Logo className="mx-auto h-32 w-auto mb-8" />
+        
         <div className="text-center">
           <h1 className="font-display text-3xl font-extrabold text-text">Καλώς ήρθες!</h1>
           <p className="mt-2 font-ui text-slate-500">
@@ -793,7 +793,6 @@ export default function QuizPrototype({
     return (
       <StageCard>
         <div className="flex items-center justify-between py-4 px-4">
-          <Logo className="h-32 w-auto" />
           <button
             onClick={() => setShowHowTo(true)}
             className="rounded-full bg-slate-200 text-text px-4 py-2 text-sm font-semibold"
@@ -900,10 +899,6 @@ export default function QuizPrototype({
 
     return (
       <StageCard>
-        <div className="flex justify-center mb-4">
-          <Logo className="h-24 w-auto" />
-        </div>
-
         {/* Hidden override control for now */}
         <div className="hidden mt-2">
           <label className="text-xs mr-2 text-slate-500">Χρόνος κατηγορίας</label>
@@ -1153,9 +1148,6 @@ export default function QuizPrototype({
 
     return (
       <StageCard>
-        <div className="flex justify-center mb-4">
-          <Logo className="h-24 w-auto" />
-        </div>
         <div className="flex items-center gap-2">
             <div className="rounded-full px-3 py-1 text-xs font-semibold bg-slate-200 text-text">
               {isFinalIndex ? "Τελικός 0×–3×" : `Κατηγορία ×${q.points || 1}`}
@@ -1380,10 +1372,6 @@ export default function QuizPrototype({
 
     return (
       <StageCard>
-        {/* Header: show logo on the left; optional chip on the right */}
-        <div className="flex justify-center mb-4">
-          <Logo className="h-24 w-auto" />
-        </div>
         <div className="flex items-center justify-between">
           <div className="rounded-full px-3 py-1 text-xs font-semibold bg-slate-200 text-text">
             {isFinalIndex ? "Τελικός 0×–3×" : `Κατηγορία ×${q.points || 1}`}
@@ -1831,6 +1819,17 @@ export default function QuizPrototype({
           justScored={justScored}
           justLostStreak={justLostStreak}
         />
+
+        {/* Centralized Logo */}
+        <div className="flex justify-center mb-4">
+          <Logo
+            className={
+              stage === STAGES.NAME || stage === STAGES.INTRO
+                ? "mx-auto h-32 w-auto mb-8"
+                : "h-24 w-auto"
+            }
+          />
+        </div>
 
         {/* Modals */}
         {showHowTo && <HowToModal onClose={() => setShowHowTo(false)} />}
