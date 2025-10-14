@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Logo } from "../App.jsx";
 
 export type ResultRow = {
@@ -22,7 +22,6 @@ type Props = {
   /** NEW: total score to show under the player name */
   totalScore?: number;
   maxStreak?: number;
-  onReset?: () => void;
   lang?: "el" | "en";
 };
 
@@ -42,7 +41,7 @@ const STR = {
     answerSide: "Απάντηση Παίκτη",
     delta: "+/−",
     total: "Σύνολο",
-    playAgain: "Επαναφορά παιχνιδιού",
+    challengeFriend: "Προκάλεσε ένα φίλο",
     draw: "Ισοπαλία / Καμία απάντηση",
   },
   en: {
@@ -60,7 +59,7 @@ const STR = {
     answerSide: "Player Answer",
     delta: "+/−",
     total: "Total",
-    playAgain: "Play again",
+    challengeFriend: "Challenge a friend",
     draw: "Draw / No answer",
   },
 };
@@ -71,10 +70,32 @@ export default function ResultsTableResponsive({
   playerName,
   totalScore,   // ← NEW
   maxStreak,
-  onReset,
   lang = "el",
 }: Props) {
   const t = STR[lang];
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const url = window.location.origin;
+    const title = "OnlyFootballFans Quiz";
+    const text = "Προκάλεσε ένα φίλο να παίξει!";
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title,
+          text,
+          url,
+        });
+      } catch (error) {
+        console.error("Error sharing:", error);
+      }
+    } else {
+      navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <>
@@ -229,13 +250,11 @@ export default function ResultsTableResponsive({
           </div>
         </div>
 
-        {onReset && (
-          <div className="mt-6 flex justify-center">
-            <button className="btn btn-accent" onClick={onReset}>
-              {t.playAgain}
-            </button>
-          </div>
-        )}
+        <div className="mt-6 flex justify-center">
+          <button className="btn btn-accent" onClick={handleShare}>
+            {copied ? "Αντιγράφηκε!" : t.challengeFriend}
+          </button>
+        </div>
       </div>
     </>
   );

@@ -1547,7 +1547,7 @@ export default function QuizPrototype({
           playerName={p1.name}
           totalScore={p1.score}
           maxStreak={p1.maxStreak}
-          onReset={resetGame}
+          
           lang="el"
         />
         <div className="mt-4 flex justify-center">
@@ -1847,11 +1847,7 @@ export default function QuizPrototype({
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-slate-500 font-ui">
           <div>Στάδιο: {stageLabel(stage)}</div>
           <div className="flex items-center gap-3">
-            {stage !== STAGES.INTRO && (
-              <button className="btn btn-neutral" onClick={resetGame}>
-                Επαναφορά παιχνιδιού
-              </button>
-            )}
+            
           </div>
         </div>
       </div>
