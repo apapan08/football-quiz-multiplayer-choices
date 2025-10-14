@@ -8,7 +8,7 @@ export default function ScoreInput({ value = { home: 0, away: 0 }, onChange }) {
     });
 
   return (
-    <div className="flex items-center justify-center gap-3" role="group" aria-label="Εισαγωγή σκορ">
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-3" role="group" aria-label="Εισαγωγή σκορ">
       <Stepper
         n={value.home || 0}
         onMinus={() => setVal("home", -1)}
