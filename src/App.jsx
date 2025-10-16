@@ -396,6 +396,7 @@ export default function QuizPrototype({
   // Clear Category deadline when leaving Category
   useEffect(() => {
     if (stage !== STAGES.CATEGORY) {
+      setCatDeadline(null);
       try {
         localStorage.removeItem(CATEGORY_DEADLINE_KEY);
       } catch {}
