@@ -17,6 +17,16 @@ export default Media;
 function OptimizedImage({ media, onReady }) {
   const { src, alt = "", priority = false, webp, avif } = media;
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef(null);
+
+  useEffect(() => {
+    if (imgRef.current?.complete) {
+      setLoaded(true);
+      try {
+        onReady?.();
+      } catch {}
+    }
+  });
 
   // Only include alternative sources if you actually provide them.
   const sources = useMemo(
@@ -32,6 +42,7 @@ function OptimizedImage({ media, onReady }) {
       {sources.avif && <source srcSet={sources.avif} type="image/avif" />}
       {sources.webp && <source srcSet={sources.webp} type="image/webp" />}
       <img
+        ref={imgRef}
         src={src}
         alt={alt}
         loading={priority ? "eager" : "lazy"}
