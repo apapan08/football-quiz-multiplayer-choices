@@ -161,10 +161,31 @@ export const questions = [
     answer: "Lucas Hernandez to Bayern (2019)",
   },
 
-  // 9) FINAL — Iconic Managers (numeric) — how many teams managed
+  // 9) Multiple Choice Example
+  {
+    id: "q10-stadium-capacity",
+    order: 9,
+    category: "Stadiums",
+    points: 1,
+    lang: "el",
+    prompt: "Which of the following stadiums has the largest capacity?",
+    type: "open",
+    time_seconds: 25,
+
+    answerMode: "MultipleChoice",
+    choices: [
+      "Old Trafford",
+      "Anfield",
+      "Wembley Stadium",
+      "Tottenham Hotspur Stadium"
+    ],
+    answer: "Wembley Stadium"
+  },
+
+  // 10) FINAL — Iconic Managers (numeric) — how many teams managed
   {
     id: "q9-iconic-managers-count",
-    order: 9,
+    order: 10,
     category: "Τελική ερώτηση — Iconic Managers",
     points: 1,
     isFinal: true,

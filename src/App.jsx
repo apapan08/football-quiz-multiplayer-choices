@@ -1284,6 +1284,22 @@ export default function QuizPrototype({
           </form>
         )}
 
+        {/* MULTIPLE CHOICE */}
+        {mode === "MultipleChoice" && (
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(q.choices || []).map((choice, i) => (
+              <button
+                key={i}
+                type="button"
+                className="btn btn-accent"
+                onClick={() => submitAndReveal(choice)}
+              >
+                {choice}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* TEXT */}
         {mode === "text" && (
           <form
