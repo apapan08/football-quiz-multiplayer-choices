@@ -99,9 +99,7 @@ export default function ResultsTableResponsive({
 
   return (
     <>
-      <div className="bg-gray-200 py-4 rounded-t-lg mb-4">
-        <Logo className="mx-auto h-32 w-auto mb-8" />
-      </div>
+      
       <div className="card overflow-hidden mt-4" style={{ backgroundColor: 'var(--surface-color)' }}>
         {/* Header */}
         <div className="text-center">
