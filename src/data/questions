@@ -120,7 +120,7 @@ export const questions = [
   {
     id: "q9-final-semedo",
     order: 9,
-    category: "Final Question",
+    category: "Κοινός παίκτης",
     points: 1,
     lang: "el",
     prompt: "Ποιος παίκτης αγωνίστηκε με τους ολους τους πιο κάτω ποδοσφαιριστές",
