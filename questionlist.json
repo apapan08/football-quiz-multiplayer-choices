@@ -1,0 +1,136 @@
+Question 1
+Σε ποιο ποδοσφαιριστή αναφέρεται το σύνθημα που θα ακούσεις?
+Answermode: Catalog players
+Answer : Viktor Gyokeres
+Points 2
+Category : Συνθήματα οπαδών
+media video path: Videos1.mp4
+
+Question 2
+
+Ποιος από τους πάρακατω παίκτες δεν αναφέρεται στο τραγούδι που θα ακούσεις
+
+Answermode: MultipleChoice
+
+Choices: Kylian Mbappé, Ousmane Dembele,Paul Pogba, Thierry henry
+
+Answer: Thierry henry
+
+Points 1
+
+Category : Ποδοσφαιρικά τραγούδια
+
+
+Question 3
+
+Ποιός ποδοσφαιριστής έπαιξε τους περισσότερους αγώνες με τον Neymar
+Answermode: Catalog players
+Answer : Lionel Messi
+Points 1
+Category : Συμπαικτές
+
+
+
+Question 4 same as the this one (but will chane the player
+
+  {
+    id: "q2-career-emre-can",
+    order: 3,
+    category: "Βιογραφικό παίκτη",
+    points: 1,
+    lang: "el",
+    prompt: "Ποιος είναι ο παίκτης με την παρακάτω καριέρα;",
+    type: "open",
+    media: { kind: "image", src: "/Images/Photo2.png" },
+
+    // NEW
+    time_seconds: 75,
+
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Nicolas Otamendi"],
+    answer: "Nicolas Otamendi",
+  },
+
+Quetion 5 same as the this one (but will chane the player
+
+  {
+    id: "q3-missing-xi-lovren",
+    order: 4,
+    category: "Ενδεκάδα",
+    points: 1,
+    lang: "el",
+    prompt: "Ποιος παίκτης λείπει από την παρακάτω ενδεκάδα;",
+    type: "open",
+    media: { kind: "image", src: "/Images/Photo1.png" },
+
+    // NEW
+    time_seconds: 60,
+
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Dejan Lovren"],
+    answer: "Dejan Lovren",
+  },
+
+Question 6:
+
+Ποιον παικτη απεικονίζει η πιο κατώ φωτογραφια
+
+Answermode: Catalog players
+Answer : Sokratis Papastathopoulos
+Points 1
+Category : Fun
+media video path: Videos1.mp4
+
+
+Question 7:
+
+{
+
+
+
+    category: "Logo Quiz",
+ 
+answer mode : catalog teams
+    prompt: "Ποιας ομάδας είναι το παρακάτω λογότυπο;",
+    media: { kind: "image", src: "/Images/Photo4.png" },
+    answer: "Birmingham City F.C.",
+
+  },
+
+points 2
+
+Question 8 (i will change photo and answer afterwards so keep it)
+  {
+    id: "q6-player-stats-xhaka",
+    order: 6,
+    category: "Στατιστικά παίκτη",
+    points: 1,
+    lang: "el",
+    prompt: "Ποιος είναι ο παίκτης με τα παρακάτω στατιστικά;",
+    type: "open",
+    media: { kind: "image", src: "/Images/Photo3.png" },
+
+    // NEW
+    time_seconds: 120,
+
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Roberto Carlos"],
+    answer: "Roberto Carlos",
+  },
+
+
+Question 9:
+Ποιος παίκτης αγωνίστηκε με τους ολους τους πιο κάτω ποδοσφαιριστές
+ answerMode: "catalog",
+    catalog: "players",
+Answer Nelson Semedo
+Isfinal true
+Media photo
+
+
+
+
+ 
