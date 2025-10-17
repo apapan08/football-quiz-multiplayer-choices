@@ -262,7 +262,7 @@ export default function ResultsOverlayV2({
         {/* body */}
         <div className="flex-1 overflow-y-auto px-4 py-3">
           {internalView === "room" && (
-            <div className="overflow-hidden rounded-xl" style={{ border: '1px solid var(--border-color)' }}>
+            <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border-color)' }}>
               <table className="min-w-full text-sm" style={{ color: 'var(--text-color)' }}>
                 <thead>
                   <tr>
@@ -301,7 +301,7 @@ export default function ResultsOverlayV2({
           )}
 
           {internalView === "global" && (
-            <div className="overflow-hidden rounded-xl" style={{ border: '1px solid var(--border-color)' }}>
+            <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border-color)' }}>
               <table className="min-w-full text-sm" style={{ color: 'var(--text-color)' }}>
                 <thead>
                   <tr>
