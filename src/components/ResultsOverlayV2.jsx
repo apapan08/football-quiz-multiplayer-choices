@@ -143,7 +143,7 @@ function useGlobalAllTime(quizId = "default", youId = null, refreshSignal = 0) {
         .order("score", { ascending: false })
         .order("duration_seconds", { ascending: true })
         .order("created_at", { ascending: true })
-        .limit(50);
+        .limit(300);
       if (q1.error) console.error("[overlay] leaderboard top error:", q1.error);
       if (mounted && !q1.error) setTop(q1.data || []);
 
@@ -176,7 +176,7 @@ function useGlobalAllTime(quizId = "default", youId = null, refreshSignal = 0) {
           setTop((prev) => {
             const next = [n, ...prev];
             next.sort(sortFn);
-            return next.slice(0, 50);
+            return next.slice(0, 300);
           });
           if (youId && n.user_id === youId) {
             setYours((y) => {
@@ -255,7 +255,7 @@ export default function ResultsOverlayV2({
           </div>
 
           <div className="text-sm" style={{ color: 'var(--text-color-secondary)' }} aria-live="polite">
-            {internalView === "room" ? statusText : <>Πρώτοι 50</>}
+            {internalView === "room" ? statusText : <></>}
           </div>
         </div>
 
