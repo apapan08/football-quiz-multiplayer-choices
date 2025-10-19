@@ -1,7 +1,7 @@
 export const questions = [
   {
     id: "q1-chant-gyokeres",
-    order: 4,
+    order: 3,
     category: "Συνθήματα οπαδών",
     points: 1,
     lang: "el",
@@ -16,7 +16,7 @@ export const questions = [
   },
   {
     id: "q2-song-mbappe",
-    order: 3,
+    order: 2,
     category: "Ποδοσφαιρικά τραγούδια",
     points: 1,
     lang: "el",
@@ -30,7 +30,7 @@ export const questions = [
   },
   {
     id: "q3-teammate-neymar",
-    order: 2,
+    order: 1,
     category: "Συμπαικτές",
     points: 1,
     lang: "el",
