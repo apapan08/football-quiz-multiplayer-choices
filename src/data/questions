@@ -36,7 +36,7 @@ export const questions = [
     lang: "el",
     prompt: "Ποιος ποδοσφαιριστής έπαιξε τους περισσότερους αγώνες με τον Neymar;",
     type: "open",
-    time_seconds: 65,
+    time_seconds: 75,
     answerMode: "catalog",
     catalog: "players",
     accept: ["Lionel Messi"],
