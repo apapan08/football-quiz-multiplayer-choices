@@ -1203,6 +1203,13 @@ export default function QuizPrototype({
             <div className="flex flex-wrap gap-3 justify-center mt-3">
               <button
                 type="button"
+                className="btn btn-neutral"
+                onClick={() => submitAndReveal("")}
+              >
+                Δεν γνωρίζω
+              </button>
+              <button
+                type="button"
                 className="btn btn-accent"
                 onClick={() => {
                   const toSubmit =
@@ -1218,13 +1225,6 @@ export default function QuizPrototype({
               >
                 Υποβολή
               </button>
-              <button
-                type="button"
-                className="btn btn-neutral"
-                onClick={() => submitAndReveal("")}
-              >
-                Δεν γνωρίζω
-              </button>
             </div>
           </div>
         )}
@@ -1236,17 +1236,17 @@ export default function QuizPrototype({
             <div className="flex flex-wrap gap-3 justify-center">
               <button
                 type="button"
-                className="btn btn-accent"
-                onClick={() => submitAndReveal(scoreValue)}
-              >
-                Υποβολή σκορ
-              </button>
-              <button
-                type="button"
                 className="btn btn-neutral"
                 onClick={() => submitAndReveal("")}
               >
                 Δεν γνωρίζω
+              </button>
+              <button
+                type="button"
+                className="btn btn-accent"
+                onClick={() => submitAndReveal(scoreValue)}
+              >
+                Υποβολή σκορ
               </button>
             </div>
           </div>
@@ -1270,15 +1270,15 @@ export default function QuizPrototype({
               onChange={(e) => setInputValue(e.target.value)}
             />
             <div className="flex flex-wrap gap-3 justify-center">
-              <button type="submit" className="btn btn-accent">
-                Υποβολή
-              </button>
               <button
                 type="button"
                 className="btn btn-neutral"
                 onClick={() => submitAndReveal("")}
               >
                 Δεν γνωρίζω
+              </button>
+              <button type="submit" className="btn btn-accent">
+                Υποβολή
               </button>
             </div>
           </form>
@@ -1319,9 +1319,6 @@ export default function QuizPrototype({
               spellCheck={false}
             />
             <div className="flex flex-wrap gap-3 justify-center">
-              <button type="submit" className="btn btn-accent">
-                Υποβολή
-              </button>
               <button
                 type="button"
                 className="btn btn-neutral"
@@ -1329,6 +1326,9 @@ export default function QuizPrototype({
                 title="Μετάβαση στην απάντηση χωρίς να δοθεί λύση"
               >
                 Δεν γνωρίζω
+              </button>
+              <button type="submit" className="btn btn-accent">
+                Υποβολή
               </button>
             </div>
           </form>
