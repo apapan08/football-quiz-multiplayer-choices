@@ -1922,7 +1922,7 @@ function stageLabel(stage) {
 }
 
 /* ——— HowTo (generic) ——— */
-function HowToModal({ onClose, totalQuestions = 9 }) {
+function HowToModal({ onClose, totalQuestions = 8 }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
