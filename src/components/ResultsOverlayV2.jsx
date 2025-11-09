@@ -267,9 +267,9 @@ export default function ResultsOverlayV2({
                 <thead>
                   <tr>
                     <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>#</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Όνομα</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Χρόνος</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Ονομα</th>
                     <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Σκορ</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Χρονος</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -284,8 +284,8 @@ export default function ResultsOverlayV2({
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{fmtTime(r.duration_seconds)}</td>
                       <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{r.score}</td>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{fmtTime(r.duration_seconds)}</td>
                     </tr>
                   ))}
                   {rows.length === 0 && (
@@ -306,9 +306,9 @@ export default function ResultsOverlayV2({
                 <thead>
                   <tr>
                     <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>#</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Όνομα</th>
-                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Χρόνος</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Ονομα</th>
                     <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Σκορ</th>
+                    <th className="text-left text-xs uppercase tracking-wide px-4 py-2" style={{ backgroundColor: 'var(--secondary-color)' }}>Χρονος</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -323,8 +323,8 @@ export default function ResultsOverlayV2({
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{fmtTime(r.duration_seconds)}</td>
                       <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{r.score}</td>
+                      <td className="px-4 py-2" style={{ borderTop: '1px solid var(--border-color)' }}>{fmtTime(r.duration_seconds)}</td>
                     </tr>
                   ))}
                   {top.length === 0 && (

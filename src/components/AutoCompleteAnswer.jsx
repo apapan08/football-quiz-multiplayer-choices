@@ -150,8 +150,8 @@ export default function AutoCompleteAnswer({
         <div
           className="absolute z-50 mt-2 w-full rounded-2xl shadow-2xl overflow-hidden"
           style={{
-            background: "var(--brand-card)",
-            border: "1px solid var(--brand-border)",
+            background: "var(--background-color)",
+            border: "1px solid var(--border-color)",
             backdropFilter: "blur(6px)",
           }}
         >
