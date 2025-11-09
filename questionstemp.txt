@@ -1,0 +1,139 @@
+Ερώτηση 1  
+{  id: "q1-chant-gyokeres",
+    order: 6,
+    category: "Zlatan Ibrahimovic",
+    points: 1,
+    lang: "el",
+    prompt: "Zlatan Ibrahimović played for which club during the 2004 to 2006 period?",
+    type: "open",
+ 
+    time_seconds: 75,
+    answerMode: "catalog",
+    catalog: "teams",
+    accept: ["Juventus FC"],
+    answer: "Juventus FC",
+  },
+
+Ερωτηση 2
+{
+    id: "q2-song-mbappe",
+    order: 2,
+    category: "Champions league",
+    points: 1,
+    lang: "el",
+    prompt: "Which Player Have The Most UEFA Champions league Goals for manchester united? ",
+    type: "open",
+    time_seconds: 60,
+    answerMode: "MultipleChoice",
+    choices: ["Wayne Rooney", "Ruud Van Nistelrooy", "Cristiano Ronaldo", "Ryan Giggs"],
+    answer: "Ruud Van Nistelrooy",
+  },
+ 
+Ερωτηση 3
+{
+    id: "q1-iconic-chelsea-barca-score",
+    order: 4,
+    category: "Iconic Matches",
+    points: 1,
+    lang: "el",
+    prompt:
+      "Ποιο ήταν το τελικό σκορ του αγώνα που θα παρακολουθησεις",
+    type: "open",
+    media: { kind: "video", src: "/Videos/Video1.mp4" },
+
+    // NEW
+    time_seconds: 120,
+
+    answerMode: "scoreline",
+    teams: { home: "Αποελ", away: "Ομόνοια" },
+    acceptScores: [{ home: 3, away: 1 }],
+    answer: "Αποέλ - Ομόνοια 3–1 (2004 - 2005)",
+  },
+
+Ερώτηση 4
+{  id: "q1-chant-gyokeres",
+    order: 3,
+    category: "Logo quiz",
+    points: 1,
+    lang: "el",
+    prompt: "Ποιάς ομάδας είναι το πιο κάτω logo;",
+    type: "open",
+ media: { kind: "image", src: "/Images/Photo1.png" },
+    time_seconds: 75,
+    answerMode: "catalog",
+    catalog: "teams",
+    accept: ["Austria Wien"],
+    answer: "Austria Wien",
+  },
+
+Ερωτηση 5
+
+ {
+    id: "q3-teammate-neymar",
+    order: 5,
+    category: "Iconic Goals",
+    points: 1,
+    lang: "el",
+    prompt: "Can you guess who scored this tight-angled goal against Liverpool?",
+    type: "open",
+ media: { kind: "video", src: "/Videos/Video2.mp4" },
+    time_seconds: 75,
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Sergio Aguero"],
+    answer: "Sergio Aguero",
+  },
+Ερωτηση 6
+
+  {
+    id: "q5-missing-xi-lovren",
+    order: 7,
+    category: "Ενδεκάδα",
+    points: 2,
+    lang: "el",
+    prompt: "Ποιος παίκτης λείπει από την παρακάτω ενδεκάδα της Bayern στον τελικό του champions league του 2020;",
+    type: "open",
+    media: { kind: "image", src: "/Images/Photo2.png" },
+    time_seconds: 120,
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Leon Goretzka"],
+    answer: "Leon Goretzka",
+  },
+
+ερώτηση 7
+  {
+    id: "q6-fun-sokratis",
+    order: 1,
+    category: "Fun",
+    points: 1,  
+    lang: "el",
+    prompt: "Ποιον παίκτη απεικονίζει η πιο κατώ φωτογραφία;",
+    type: "open",
+    media: { kind: "image", src: "/Images/Photo3.png" },
+    time_seconds: 180,
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Grigoris Kastanos"],
+    answer: "Grigoris Kastanos",
+  },
+
+
+Ερωτηση 8
+  {
+    id: "q9-final-semedo",
+    order: 8,
+    category: "Κοινός παίκτης",
+    points: 1,
+    lang: "el",
+    prompt: "Ποιος παίκτης αγωνίστηκε με τους ολους τους πιο κάτω ποδοσφαιριστές;",
+    type: "open",
+    media: { kind: "image", src: "/Images/Photo4.png" },
+    time_seconds: 360,
+    answerMode: "catalog",
+    catalog: "players",
+    accept: ["Cesc Fabregas"],
+    answer: "Cesc Fabregas",
+    isFinal: true,
+  }
+
