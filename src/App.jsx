@@ -1935,7 +1935,7 @@ function HowToModal({ onClose, totalQuestions = 9 }) {
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
       <div className="min-h-full flex items-start sm:items-center justify-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-        <div className="relative w-full max-w-[680px] font-ui rounded-2xl shadow-xl ring-1 ring-slate-700 bg-slate-800 text-slate-200 flex flex-col overflow-hidden max-h-[clamp(420px,85dvh,760px)]">
+        <div className="relative w-full max-w-[680px] font-ui rounded-2xl shadow-xl ring-1 ring-slate-700 bg-slate-800 text-slate-200 flex flex-col max-h-[clamp(420px,85dvh,760px)]">
           <div className="sticky top-0 z-10 px-6 py-4 bg-slate-800/80 backdrop-blur-sm rounded-t-2xl flex items-center justify-between border-b border-slate-700">
             <h2 className="font-display text-2xl font-extrabold">Πώς παίζεται</h2>
             <div className="flex items-center gap-2">
@@ -1943,7 +1943,7 @@ function HowToModal({ onClose, totalQuestions = 9 }) {
             </div>
           </div>
 
-          <div className="scroll-area px-6 pb-6 pt-2 flex-1 min-h-0 text-sm md:text-base leading-relaxed">
+          <div className="scroll-area px-6 pb-6 pt-2 flex-1 min-h-0 text-sm md:text-base leading-relaxed overflow-y-auto">
             <ul className="mt-2 list-disc pl-5 space-y-2">
               <li><strong>{totalQuestions} ερωτήσεις.</strong> Κάθε μία έχει συγκεκριμένους πόντους (ανάλογα με τη δυσκολία).</li>
               <li><strong>Στόχος:</strong> μάζεψε όσο περισσότερους πόντους μπορείς.</li>
